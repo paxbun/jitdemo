@@ -11,16 +11,26 @@ import jitdemo.expr.expression;
 export namespace jitdemo::expr::expressions
 {
 
-class UnaryBuiltinFunctionExpression : Expression
+class UnaryBuiltinFunctionExpression : public Expression
 {
+  public:
+    using FunctionType = double (*)(double) noexcept;
+
   private:
-    double (*func_)(double) noexcept;
+    FunctionType func_;
 
   public:
-    UnaryBuiltinFunctionExpression(double (*func)(double) noexcept) : func_ { func } {}
+    FunctionType func() noexcept
+    {
+        return func_;
+    }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override {
+    UnaryBuiltinFunctionExpression(FunctionType func) : func_ { func } {}
+
+  public:
+    virtual double Evaluate(std::span<double> params) noexcept override
+    {
         if (params.size() < 1)
             return 0.0;
 
@@ -28,10 +38,22 @@ class UnaryBuiltinFunctionExpression : Expression
     }
 };
 
-class BinaryBuiltinFunctionExpression : Expression
+class BinaryBuiltinFunctionExpression : public Expression
 {
+  public:
+    using FunctionType = double (*)(double, double) noexcept;
+
   private:
-    double (*func_)(double, double) noexcept;
+    FunctionType func_;
+
+  public:
+    FunctionType func() noexcept
+    {
+        return func_;
+    }
+
+  public:
+    BinaryBuiltinFunctionExpression(FunctionType func) : func_ { func } {}
 
   public:
     virtual double Evaluate(std::span<double> params) noexcept override
