@@ -62,7 +62,7 @@ class BinaryExpression : public Expression
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept
+    virtual double Evaluate(std::span<double> params) noexcept override
     {
         double leftValue { left_->Evaluate(params) };
         double rightValue { right_->Evaluate(params) };

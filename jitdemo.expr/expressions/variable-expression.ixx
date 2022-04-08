@@ -29,7 +29,7 @@ class VariableExpression : public Expression
     VariableExpression(std::size_t idx) : idx_ { idx } {}
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept
+    virtual double Evaluate(std::span<double> params) noexcept override
     {
         if (params.size() <= idx_)
             return 0.0;

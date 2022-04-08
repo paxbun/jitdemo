@@ -37,7 +37,7 @@ class FunctionExpression : public Expression
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept
+    virtual double Evaluate(std::span<double> params) noexcept override
     {
         std::vector<double> values;
         values.reserve(exprs_.size());
