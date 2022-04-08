@@ -4,3 +4,4 @@ export module jitdemo.expr;
 
 export import jitdemo.expr.expression;
 export import jitdemo.expr.expressions;
+export import jitdemo.expr.function;

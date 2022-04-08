@@ -10,6 +10,8 @@ add_library(jitdemo.expr
 	"expressions/variable-expression.ixx"
 	"expressions/mod.ixx"
 
+	"function.ixx"
+
 	"mod.ixx"
 )
 target_use_cpp_standard(jitdemo.expr 20)
