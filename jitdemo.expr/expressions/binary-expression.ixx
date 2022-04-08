@@ -73,7 +73,7 @@ class BinaryExpression : public Expression
         case BinaryExpressionOps::Multiplication: return leftValue * rightValue;
         case BinaryExpressionOps::Division: return leftValue / rightValue;
         case BinaryExpressionOps::Power: return std::pow(leftValue, rightValue);
-        default: [[std::unlikely]] return 0.0;
+        default: [[unlikely]] return 0.0;
         }
     }
 };
