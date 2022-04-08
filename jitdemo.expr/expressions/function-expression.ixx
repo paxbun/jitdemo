@@ -23,11 +23,12 @@ export namespace jitdemo::expr::expressions
 class FunctionExpression : public Expression
 {
   private:
-    Function*                                function_;
+    std::shared_ptr<Function>                function_;
     std::vector<std::unique_ptr<Expression>> exprs_;
 
   public:
-    FunctionExpression(Function* function, std::vector<std::unique_ptr<Expression>>&& expr) :
+    FunctionExpression(std::shared_ptr<Function> const&           function,
+                       std::vector<std::unique_ptr<Expression>>&& expr) :
         function_ { function },
         exprs_ { std::move(expr) }
     {
