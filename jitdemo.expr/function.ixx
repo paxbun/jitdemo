@@ -21,6 +21,7 @@ class Function
 {
   private:
     std::unique_ptr<Expression> expr_;
+    std::vector<std::string>    params_;
 
   public:
     Expression* expr() noexcept
@@ -28,8 +29,16 @@ class Function
         return expr_.get();
     }
 
+    std::vector<std::string> const& params() noexcept
+    {
+        return params_;
+    }
+
   public:
-    Function(std::unique_ptr<Expression>&& expr) : expr_ { std::move(expr) } {}
+    Function(std::vector<std::string>&& params, std::unique_ptr<Expression>&& expr) :
+        params_ { std::move(params) },
+        expr_ { std::move(expr) }
+    {}
 
   public:
     virtual double Evaluate(std::span<double> params) noexcept
