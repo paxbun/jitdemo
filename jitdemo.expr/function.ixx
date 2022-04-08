@@ -17,7 +17,7 @@ export namespace jitdemo::expr
 /**
  * `Function` represents a complete function which contains an expression.
  */
-class Function
+class Function : std::enable_shared_from_this<Function>
 {
   private:
     std::unique_ptr<Expression> expr_;
