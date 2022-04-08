@@ -7,6 +7,7 @@ add_library(jitdemo.expr
 
 	"expressions/binary-expression.ixx" 
 	"expressions/constant-expression.ixx"
+	"expressions/function-expression.ixx"
 	"expressions/variable-expression.ixx"
 	"expressions/mod.ixx"
 
