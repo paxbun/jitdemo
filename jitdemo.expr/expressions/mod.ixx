@@ -3,5 +3,7 @@
 export module jitdemo.expr.expressions;
 
 export import jitdemo.expr.expressions.binary_expression;
+export import jitdemo.expr.expressions.builtin_function_expression;
 export import jitdemo.expr.expressions.constant_expression;
+export import jitdemo.expr.expressions.function_expression;
 export import jitdemo.expr.expressions.variable_expression;
