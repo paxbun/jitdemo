@@ -1,0 +1,11 @@
+# CMake
+/build
+/out
+
+# Visual Studio
+/.vs
+*.pdb
+CMakeSettings.json
+
+# Visual Studio Code
+/.vscode
