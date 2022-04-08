@@ -34,7 +34,9 @@ class Context
   public:
     auto names() noexcept
     {
-        return functions_ | std::views::transform([](auto& pair) noexcept { return pair.first; });
+        return functions_ | std::views::transform([](auto& pair) noexcept -> std::string_view {
+                   return pair.first;
+               });
     }
 
   public:
