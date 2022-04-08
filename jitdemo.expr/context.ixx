@@ -26,7 +26,7 @@ export namespace jitdemo::expr
 /**
  * `Context` contains a list of compiled functions in the current session.
  */
-class Context
+class Context final
 {
   private:
     std::map<std::string, std::shared_ptr<Function>> functions_;
@@ -43,6 +43,12 @@ class Context
     Context();
 
   public:
+    /**
+     * Returns the function with the given name.
+     * 
+     * @param name the name of the function.
+     * @return a pointer to the function
+     */
     std::shared_ptr<Function> FindFunction(std::string_view name) noexcept
     {
         auto it { functions_.find(std::string(name)) };
@@ -52,6 +58,14 @@ class Context
         return it->second;
     }
 
+    /**
+     * Adds a new function. If there was already a function with the same name, this function
+     * has no effect.
+     * 
+     * @param name the name of the function.
+     * @param function a pointer to the function.
+     * @return `true` if there was no function with the same name, `false` otherwise
+     */
     bool AddFunction(std::string_view name, std::shared_ptr<Function> const& function) noexcept
     {
         std::string nameAllocated { name };
