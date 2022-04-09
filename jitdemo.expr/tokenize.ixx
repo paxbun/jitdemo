@@ -62,12 +62,15 @@ Tokenizer tokenizers[] {
     SingleCharacterTokenizer<u8'/', TokenType::Slash>,
     SingleCharacterTokenizer<u8'^', TokenType::Caret>,
     SingleCharacterTokenizer<u8',', TokenType::Comma>,
+    SingleCharacterTokenizer<u8'=', TokenType::Equals>,
     [](::std::u8string_view::iterator& begin,
        ::std::u8string_view::iterator  end,
        TokenType&                      type) noexcept -> bool {
-        while (begin != end and ::std::isalpha(*begin)) ++begin;
-        if (begin == end)
+        if (not ::std::isalpha(*begin))
             return false;
+
+        ++begin;
+        while (begin != end and ::std::isalpha(*begin)) ++begin;
 
         type = TokenType::Identifier;
         return true;
@@ -75,9 +78,39 @@ Tokenizer tokenizers[] {
     [](::std::u8string_view::iterator& begin,
        ::std::u8string_view::iterator  end,
        TokenType&                      type) noexcept -> bool {
-        while (begin != end and ::std::isspace(*begin)) ++begin;
-        if (begin == end)
+        if (not ::std::isdigit(*begin))
+        {
+            if (*begin != '.')
+                return false;
+
+            if (begin + 1 == end or not ::std::isdigit(begin[1]))
+                return false;
+        }
+
+        while (begin != end and ::std::isdigit(*begin)) ++begin;
+        if (begin == end || *begin != '.')
+            goto success;
+
+        // If the character next to the period is not a digit,
+        // the period is not a decimal point
+        if (begin + 1 == end || not ::std::isdigit(begin[1]))
+            goto success;
+
+        ++begin;
+        while (begin != end and ::std::isdigit(*begin)) ++begin;
+
+    success:
+        type = TokenType::Numeric;
+        return true;
+    },
+    [](::std::u8string_view::iterator& begin,
+       ::std::u8string_view::iterator  end,
+       TokenType&                      type) noexcept -> bool {
+        if (not ::std::isspace(*begin))
             return false;
+
+        ++begin;
+        while (begin != end and ::std::isspace(*begin)) ++begin;
 
         type = TokenType::Whitespace;
         return true;
@@ -106,13 +139,15 @@ TokenizationResult jitdemo::expr::Tokenize(::std::u8string_view source) noexcept
                 auto nextCurrent { current };
                 if (TokenType type; tokenizer(nextCurrent, end, type))
                 {
-                    tokens.push_back(Token {
-                        .type { type },
-                        .begin { static_cast<uint32_t>(::std::distance(begin, current)) },
-                        .end { static_cast<uint32_t>(::std::distance(begin, nextCurrent)) },
-                        .text { ::std::u8string_view { current, nextCurrent } },
-                    });
-
+                    if (type != TokenType::Whitespace)
+                    {
+                        tokens.push_back(Token {
+                            .type { type },
+                            .begin { static_cast<uint32_t>(::std::distance(begin, current)) },
+                            .end { static_cast<uint32_t>(::std::distance(begin, nextCurrent)) },
+                            .text { ::std::u8string_view { current, nextCurrent } },
+                        });
+                    }
                     current = nextCurrent;
                     goto tokenized;
                 }
