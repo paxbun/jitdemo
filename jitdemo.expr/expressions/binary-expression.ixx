@@ -29,9 +29,9 @@ enum class BinaryExpressionOps
 class BinaryExpression : public Expression
 {
   private:
-    std::unique_ptr<Expression> left_;
-    std::unique_ptr<Expression> right_;
-    BinaryExpressionOps         ops_;
+    ::std::unique_ptr<Expression> left_;
+    ::std::unique_ptr<Expression> right_;
+    BinaryExpressionOps           ops_;
 
   public:
     Expression* left() noexcept
@@ -50,19 +50,19 @@ class BinaryExpression : public Expression
     }
 
   public:
-    BinaryExpression(std::unique_ptr<Expression>&& left,
-                     std::unique_ptr<Expression>&& right,
-                     BinaryExpressionOps           ops) :
-        left_ { std::move(left) },
-        right_ { std::move(right) },
+    BinaryExpression(::std::unique_ptr<Expression>&& left,
+                     ::std::unique_ptr<Expression>&& right,
+                     BinaryExpressionOps             ops) :
+        left_ { ::std::move(left) },
+        right_ { ::std::move(right) },
         ops_ { ops }
     {
         if (ops_ < BinaryExpressionOps::Addition || BinaryExpressionOps::Power < ops_)
-            throw std::invalid_argument { "invalid operation" };
+            throw ::std::invalid_argument { "invalid operation" };
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
         double leftValue { left_->Evaluate(params) };
         double rightValue { right_->Evaluate(params) };
@@ -72,7 +72,7 @@ class BinaryExpression : public Expression
         case BinaryExpressionOps::Subtraction: return leftValue - rightValue;
         case BinaryExpressionOps::Multiplication: return leftValue * rightValue;
         case BinaryExpressionOps::Division: return leftValue / rightValue;
-        case BinaryExpressionOps::Power: return std::pow(leftValue, rightValue);
+        case BinaryExpressionOps::Power: return ::std::pow(leftValue, rightValue);
         default: [[unlikely]] return 0.0;
         }
     }

@@ -30,11 +30,11 @@ class UnaryBuiltinFunctionExpression : public Expression
     UnaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
     {
         if (func == nullptr)
-            throw std::invalid_argument { "func must not be nullptr" };
+            throw ::std::invalid_argument { "func must not be nullptr" };
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
         if (params.size() < 1)
             return 0.0;
@@ -61,11 +61,11 @@ class BinaryBuiltinFunctionExpression : public Expression
     BinaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
     {
         if (func == nullptr)
-            throw std::invalid_argument { "func must not be nullptr" };
+            throw ::std::invalid_argument { "func must not be nullptr" };
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
         if (params.size() < 1)
             return 0.0;

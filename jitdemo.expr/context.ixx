@@ -29,14 +29,14 @@ export namespace jitdemo::expr
 class Context final
 {
   private:
-    std::map<std::u8string, std::shared_ptr<Function>> functions_;
+    ::std::map<::std::u8string, ::std::shared_ptr<Function>> functions_;
 
   public:
     auto names() noexcept
     {
-        return functions_ | std::views::transform([](auto& pair) noexcept -> std::u8string_view {
-                   return pair.first;
-               });
+        return functions_
+               | ::std::views::transform(
+                   [](auto& pair) noexcept -> ::std::u8string_view { return pair.first; });
     }
 
   public:
@@ -49,9 +49,9 @@ class Context final
      * @param name the name of the function.
      * @return a pointer to the function
      */
-    std::shared_ptr<Function> FindFunction(std::u8string_view name) noexcept
+    ::std::shared_ptr<Function> FindFunction(::std::u8string_view name) noexcept
     {
-        auto it { functions_.find(std::u8string(name)) };
+        auto it { functions_.find(::std::u8string(name)) };
         if (it == functions_.end())
             return nullptr;
 
@@ -66,13 +66,14 @@ class Context final
      * @param function a pointer to the function.
      * @return `true` if there was no function with the same name, `false` otherwise
      */
-    bool AddFunction(std::u8string_view name, std::shared_ptr<Function> const& function) noexcept
+    bool AddFunction(::std::u8string_view               name,
+                     ::std::shared_ptr<Function> const& function) noexcept
     {
-        std::u8string nameAllocated { name };
+        ::std::u8string nameAllocated { name };
         if (functions_.find(nameAllocated) != functions_.end())
             return false;
 
-        functions_.insert(std::make_pair(std::move(nameAllocated), function));
+        functions_.insert(::std::make_pair(::std::move(nameAllocated), function));
         return true;
     }
 };
@@ -84,15 +85,15 @@ module : private;
 namespace
 {
 
-std::pair<std::u8string, std::shared_ptr<Function>>
+std::pair<::std::u8string, ::std::shared_ptr<Function>>
 MakeUnaryFunction(const char8_t* name, UnaryBuiltinFunctionExpression::FunctionType function)
 {
     return {
         name,
-        std::shared_ptr<Function> {
+        ::std::shared_ptr<Function> {
             new Function {
                 { u8"x" },
-                std::unique_ptr<UnaryBuiltinFunctionExpression> {
+                ::std::unique_ptr<UnaryBuiltinFunctionExpression> {
                     new UnaryBuiltinFunctionExpression { function },
                 },
             },
@@ -100,15 +101,15 @@ MakeUnaryFunction(const char8_t* name, UnaryBuiltinFunctionExpression::FunctionT
     };
 }
 
-std::pair<std::u8string, std::shared_ptr<Function>>
+std::pair<::std::u8string, ::std::shared_ptr<Function>>
 MakeBinaryFunction(const char8_t* name, BinaryBuiltinFunctionExpression::FunctionType function)
 {
     return {
         name,
-        std::shared_ptr<Function> {
+        ::std::shared_ptr<Function> {
             new Function {
                 { u8"x", u8"y" },
-                std::unique_ptr<BinaryBuiltinFunctionExpression> {
+                ::std::unique_ptr<BinaryBuiltinFunctionExpression> {
                     new BinaryBuiltinFunctionExpression { function },
                 },
             },
@@ -120,19 +121,20 @@ MakeBinaryFunction(const char8_t* name, BinaryBuiltinFunctionExpression::Functio
 
 jitdemo::expr::Context::Context() :
     functions_ {
-        MakeUnaryFunction(u8"sin", [](double x) noexcept { return std::sin(x); }),
-        MakeUnaryFunction(u8"cos", [](double x) noexcept { return std::cos(x); }),
-        MakeUnaryFunction(u8"tan", [](double x) noexcept { return std::tan(x); }),
-        MakeUnaryFunction(u8"asin", [](double x) noexcept { return std::asin(x); }),
-        MakeUnaryFunction(u8"acos", [](double x) noexcept { return std::acos(x); }),
-        MakeUnaryFunction(u8"atan", [](double x) noexcept { return std::atan(x); }),
-        MakeUnaryFunction(u8"sinh", [](double x) noexcept { return std::sinh(x); }),
-        MakeUnaryFunction(u8"cosh", [](double x) noexcept { return std::cosh(x); }),
-        MakeUnaryFunction(u8"tanh", [](double x) noexcept { return std::tanh(x); }),
-        MakeUnaryFunction(u8"ln", [](double x) noexcept { return std::log(x); }),
-        MakeUnaryFunction(u8"log2", [](double x) noexcept { return std::log2(x); }),
-        MakeUnaryFunction(u8"log10", [](double x) noexcept { return std::log10(x); }),
-        MakeBinaryFunction(u8"log",
-                           [](double x, double y) noexcept { return std::log2(y) / std::log2(x); }),
+        MakeUnaryFunction(u8"sin", [](double x) noexcept { return ::std::sin(x); }),
+        MakeUnaryFunction(u8"cos", [](double x) noexcept { return ::std::cos(x); }),
+        MakeUnaryFunction(u8"tan", [](double x) noexcept { return ::std::tan(x); }),
+        MakeUnaryFunction(u8"asin", [](double x) noexcept { return ::std::asin(x); }),
+        MakeUnaryFunction(u8"acos", [](double x) noexcept { return ::std::acos(x); }),
+        MakeUnaryFunction(u8"atan", [](double x) noexcept { return ::std::atan(x); }),
+        MakeUnaryFunction(u8"sinh", [](double x) noexcept { return ::std::sinh(x); }),
+        MakeUnaryFunction(u8"cosh", [](double x) noexcept { return ::std::cosh(x); }),
+        MakeUnaryFunction(u8"tanh", [](double x) noexcept { return ::std::tanh(x); }),
+        MakeUnaryFunction(u8"ln", [](double x) noexcept { return ::std::log(x); }),
+        MakeUnaryFunction(u8"log2", [](double x) noexcept { return ::std::log2(x); }),
+        MakeUnaryFunction(u8"log10", [](double x) noexcept { return ::std::log10(x); }),
+        MakeBinaryFunction(
+            u8"log",
+            [](double x, double y) noexcept { return ::std::log2(y) / ::std::log2(x); }),
     }
 {}

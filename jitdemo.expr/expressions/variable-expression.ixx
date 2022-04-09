@@ -17,19 +17,19 @@ export namespace jitdemo::expr::expressions
 class VariableExpression : public Expression
 {
   private:
-    std::size_t idx_;
+    ::std::size_t idx_;
 
   public:
-    std::size_t idx() noexcept
+    ::std::size_t idx() noexcept
     {
         return idx_;
     }
 
   public:
-    VariableExpression(std::size_t idx) : idx_ { idx } {}
+    VariableExpression(::std::size_t idx) : idx_ { idx } {}
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
         if (params.size() <= idx_)
             return 0.0;

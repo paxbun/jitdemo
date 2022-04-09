@@ -25,7 +25,7 @@ class ConstantExpression : public Expression
     ConstantExpression(double value) : value_ { value } {}
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
         return value_;
     }

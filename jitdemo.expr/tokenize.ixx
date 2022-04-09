@@ -108,9 +108,9 @@ TokenizationResult jitdemo::expr::Tokenize(::std::u8string_view source) noexcept
                 {
                     tokens.push_back(Token {
                         .type { type },
-                        .begin { static_cast<uint32_t>(std::distance(begin, current)) },
-                        .end { static_cast<uint32_t>(std::distance(begin, nextCurrent)) },
-                        .text { std::u8string_view { current, nextCurrent } },
+                        .begin { static_cast<uint32_t>(::std::distance(begin, current)) },
+                        .end { static_cast<uint32_t>(::std::distance(begin, nextCurrent)) },
+                        .text { ::std::u8string_view { current, nextCurrent } },
                     });
 
                     current = nextCurrent;
@@ -119,7 +119,7 @@ TokenizationResult jitdemo::expr::Tokenize(::std::u8string_view source) noexcept
             }
 
 notTokenized:
-            invalidChars[std::distance(begin, current)] = true;
+            invalidChars[::std::distance(begin, current)] = true;
             ++current;
             continue;
 
@@ -145,15 +145,15 @@ tokenized:
 
             errors.push_back(CompilationError {
                 .type { CompilationErrorType::InvalidCharacter },
-                .begin { static_cast<uint32_t>(std::distance(begin, current)) },
-                .end { static_cast<uint32_t>(std::distance(begin, newCurrent)) },
+                .begin { static_cast<uint32_t>(::std::distance(begin, current)) },
+                .end { static_cast<uint32_t>(::std::distance(begin, newCurrent)) },
             });
             current = newCurrent;
         }
     }
 
     return TokenizationResult {
-        .tokens { std::move(tokens) },
-        .errors { std::move(errors) },
+        .tokens { ::std::move(tokens) },
+        .errors { ::std::move(errors) },
     };
 }

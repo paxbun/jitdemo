@@ -23,23 +23,23 @@ export namespace jitdemo::expr::expressions
 class FunctionExpression : public Expression
 {
   private:
-    std::shared_ptr<Function>                function_;
-    std::vector<std::unique_ptr<Expression>> exprs_;
+    ::std::shared_ptr<Function>                  function_;
+    ::std::vector<::std::unique_ptr<Expression>> exprs_;
 
   public:
-    FunctionExpression(std::shared_ptr<Function> const&           function,
-                       std::vector<std::unique_ptr<Expression>>&& expr) :
+    FunctionExpression(::std::shared_ptr<Function> const&             function,
+                       ::std::vector<::std::unique_ptr<Expression>>&& expr) :
         function_ { function },
-        exprs_ { std::move(expr) }
+        exprs_ { ::std::move(expr) }
     {
         if (function_ == nullptr)
-            throw std::invalid_argument { "function must not be nullptr" };
+            throw ::std::invalid_argument { "function must not be nullptr" };
     }
 
   public:
-    virtual double Evaluate(std::span<double> params) noexcept override
+    virtual double Evaluate(::std::span<double> params) noexcept override
     {
-        std::vector<double> values;
+        ::std::vector<double> values;
         values.reserve(exprs_.size());
 
         for (auto& expr : exprs_)
