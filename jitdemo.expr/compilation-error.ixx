@@ -48,7 +48,7 @@ struct CompilationError
     /**
      * The type of the error.
      */
-    CompilationErrorType errorType;
+    CompilationErrorType type;
 
     /**
      * The index of the starting character (inclusive).
