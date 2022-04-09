@@ -55,13 +55,14 @@ bool SingleCharacterTokenizer(::std::u8string_view::iterator& begin,
 }
 
 Tokenizer tokenizers[] {
-    SingleCharacterTokenizer<'(', TokenType::ParenthesisOpen>,
-    SingleCharacterTokenizer<')', TokenType::ParenthesisClose>,
-    SingleCharacterTokenizer<'+', TokenType::Plus>,
-    SingleCharacterTokenizer<'-', TokenType::Minus>,
-    SingleCharacterTokenizer<'*', TokenType::Asterisk>,
-    SingleCharacterTokenizer<'/', TokenType::Slash>,
-    SingleCharacterTokenizer<'^', TokenType::Caret>,
+    SingleCharacterTokenizer<u8'(', TokenType::ParenthesisOpen>,
+    SingleCharacterTokenizer<u8')', TokenType::ParenthesisClose>,
+    SingleCharacterTokenizer<u8'+', TokenType::Plus>,
+    SingleCharacterTokenizer<u8'-', TokenType::Minus>,
+    SingleCharacterTokenizer<u8'*', TokenType::Asterisk>,
+    SingleCharacterTokenizer<u8'/', TokenType::Slash>,
+    SingleCharacterTokenizer<u8'^', TokenType::Caret>,
+    SingleCharacterTokenizer<u8',', TokenType::Comma>,
     [](::std::u8string_view::iterator& begin,
        ::std::u8string_view::iterator  end,
        TokenType&                      type) noexcept -> bool {

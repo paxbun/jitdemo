@@ -48,6 +48,11 @@ enum class TokenType
     Caret,
 
     /**
+     * The comma (",").
+     */
+    Comma,
+
+    /**
      * A name of a function parameter or a function ([a-zA-Z]+).
      */
     Identifier,
