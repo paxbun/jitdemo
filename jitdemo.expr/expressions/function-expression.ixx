@@ -33,7 +33,7 @@ class FunctionExpression : public Expression
         exprs_ { std::move(expr) }
     {
         if (function_ == nullptr)
-            throw std::invalid_argument { "function should not be nullptr" };
+            throw std::invalid_argument { "function must not be nullptr" };
     }
 
   public:
