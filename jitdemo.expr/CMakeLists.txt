@@ -12,6 +12,7 @@ add_library(jitdemo.expr
 	"expressions/mod.ixx"
 	"function.ixx"
 	"context.ixx"
+	"compilation-error.ixx"
 	"mod.ixx"
 )
 target_use_cpp_standard(jitdemo.expr 20)
