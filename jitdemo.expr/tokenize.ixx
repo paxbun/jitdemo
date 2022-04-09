@@ -2,6 +2,7 @@
 
 module;
 
+#include <cctype>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -25,8 +26,6 @@ TokenizationResult Tokenize(::std::u8string_view source) noexcept;
 }
 
 module : private;
-
-#include <cctype>
 
 using ::jitdemo::expr::CompilationError;
 using ::jitdemo::expr::Token;
@@ -119,7 +118,7 @@ TokenizationResult jitdemo::expr::Tokenize(::std::u8string_view source) noexcept
                 }
             }
 
-notTokenized:
+            // when tokenization failed
             invalidChars[::std::distance(begin, current)] = true;
             ++current;
             continue;
