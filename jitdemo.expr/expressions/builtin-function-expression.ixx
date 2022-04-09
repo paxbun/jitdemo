@@ -3,6 +3,7 @@
 module;
 
 #include <cmath>
+#include <stdexcept>
 
 export module jitdemo.expr.expressions.builtin_function_expression;
 
@@ -26,7 +27,11 @@ class UnaryBuiltinFunctionExpression : public Expression
     }
 
   public:
-    UnaryBuiltinFunctionExpression(FunctionType func) : func_ { func } {}
+    UnaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
+    {
+        if (func == nullptr)
+            throw std::invalid_argument { "func must not be nullptr" };
+    }
 
   public:
     virtual double Evaluate(std::span<double> params) noexcept override
@@ -53,7 +58,11 @@ class BinaryBuiltinFunctionExpression : public Expression
     }
 
   public:
-    BinaryBuiltinFunctionExpression(FunctionType func) : func_ { func } {}
+    BinaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
+    {
+        if (func == nullptr)
+            throw std::invalid_argument { "func must not be nullptr" };
+    }
 
   public:
     virtual double Evaluate(std::span<double> params) noexcept override
