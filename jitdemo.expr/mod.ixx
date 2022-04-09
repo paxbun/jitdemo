@@ -7,3 +7,4 @@ export import jitdemo.expr.expressions;
 export import jitdemo.expr.function;
 export import jitdemo.expr.context;
 export import jitdemo.expr.compilation_error;
+export import jitdemo.expr.token;
