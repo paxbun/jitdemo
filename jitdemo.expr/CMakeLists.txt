@@ -14,6 +14,7 @@ add_library(jitdemo.expr
 	"context.ixx"
 	"compilation-error.ixx"
 	"token.ixx"
+	"tokenize.ixx"
 	"mod.ixx"
 )
 target_use_cpp_standard(jitdemo.expr 20)
