@@ -53,12 +53,12 @@ struct CompilationError
     /**
      * The index of the starting character (inclusive).
      */
-    std::uint32_t        begin;
+    std::uint32_t begin;
 
     /**
      * The index of the ending character (exclusive).
      */
-    std::uint32_t        end;
+    std::uint32_t end;
 };
 
 }
