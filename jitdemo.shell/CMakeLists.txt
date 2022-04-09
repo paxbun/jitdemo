@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-add_library(jitdemo.shell
+add_executable(jitdemo.shell
 	"main.cxx"
 )
 target_link_libraries(jitdemo.shell
