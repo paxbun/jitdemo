@@ -9,9 +9,6 @@ export module jitdemo.expr.compilation_error;
 export namespace jitdemo::expr
 {
 
-/**
- * `CompilationErrorType`
- */
 enum class CompilationErrorType
 {
     /**
