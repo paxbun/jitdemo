@@ -53,9 +53,19 @@ enum class TokenType
     Comma,
 
     /**
+     * The equals sign ("=").
+     */
+    Equals,
+
+    /**
      * A name of a function parameter or a function ([a-zA-Z]+).
      */
     Identifier,
+
+    /**
+     * A number ([0-9]*\.?[0-9]+).
+     */
+    Numeric,
 
     /**
      * A string of whitespaces of an arbitrary length (\s+).
