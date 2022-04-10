@@ -13,8 +13,9 @@ add_library(jitdemo.expr
 	"function.ixx"
 	"context.ixx"
 	"compilation-error.ixx"
-	"token.ixx"
-	"tokenize.ixx"
+	"parsing/token.ixx"
+	"parsing/tokenize.ixx"
+	"parsing/mod.ixx"
 	"mod.ixx"
 )
 target_use_cpp_standard(jitdemo.expr 20)

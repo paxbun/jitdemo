@@ -7,12 +7,12 @@ module;
 #include <variant>
 #include <vector>
 
-export module jitdemo.expr.tokenize;
+export module jitdemo.expr.parsing.tokenize;
 
-import jitdemo.expr.token;
 import jitdemo.expr.compilation_error;
+import jitdemo.expr.parsing.token;
 
-export namespace jitdemo::expr
+export namespace jitdemo::expr::parsing
 {
 
 struct TokenizationResult
@@ -28,9 +28,9 @@ TokenizationResult Tokenize(::std::u8string_view source) noexcept;
 module : private;
 
 using ::jitdemo::expr::CompilationError;
-using ::jitdemo::expr::Token;
-using ::jitdemo::expr::TokenizationResult;
-using ::jitdemo::expr::TokenType;
+using ::jitdemo::expr::parsing::Token;
+using ::jitdemo::expr::parsing::TokenizationResult;
+using ::jitdemo::expr::parsing::TokenType;
 
 namespace
 {
@@ -119,7 +119,7 @@ Tokenizer tokenizers[] {
 
 }
 
-TokenizationResult jitdemo::expr::Tokenize(::std::u8string_view source) noexcept
+TokenizationResult jitdemo::expr::parsing::Tokenize(::std::u8string_view source) noexcept
 {
     ::std::vector<Token> tokens;
     ::std::vector<bool>  invalidChars(source.size(), false);

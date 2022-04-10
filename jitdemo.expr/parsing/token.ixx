@@ -5,9 +5,9 @@ module;
 #include <cstdint>
 #include <string_view>
 
-export module jitdemo.expr.token;
+export module jitdemo.expr.parsing.token;
 
-export namespace jitdemo::expr
+export namespace jitdemo::expr::parsing
 {
 
 enum class TokenType
