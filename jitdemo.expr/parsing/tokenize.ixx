@@ -187,6 +187,13 @@ tokenized:
         }
     }
 
+    tokens.push_back(Token {
+        .type { ::TokenType::EndOfFile },
+        .begin { static_cast<uint32_t>(::std::distance(source.begin(), source.end())) },
+        .end { static_cast<uint32_t>(::std::distance(source.begin(), source.end())) },
+        .text { ::std::u8string_view { source.end(), source.end() } },
+    });
+
     return TokenizationResult {
         .tokens { ::std::move(tokens) },
         .errors { ::std::move(errors) },

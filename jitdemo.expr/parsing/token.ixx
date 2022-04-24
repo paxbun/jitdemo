@@ -71,6 +71,11 @@ enum class TokenType
      * A string of whitespaces of an arbitrary length (\s+).
      */
     Whitespace,
+
+    /**
+     * End of the token stream
+     */
+    EndOfFile,
 };
 
 /**
