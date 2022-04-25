@@ -13,6 +13,7 @@ add_library(jitdemo.expr
 	"function.ixx"
 	"context.ixx"
 	"compilation-error.ixx"
+	"parsing/parse.ixx"
 	"parsing/token.ixx"
 	"parsing/tokenize.ixx"
 	"parsing/mod.ixx"
