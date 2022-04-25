@@ -35,6 +35,11 @@ enum class CompilationErrorType
      * There is no parameter with the given name in the current function.
      */
     UndefinedParamter,
+
+    /**
+     * The parser failed to convert the given constant to a floating-point value.
+     */
+    InvalidConstant,
 };
 
 /**
