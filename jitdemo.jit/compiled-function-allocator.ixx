@@ -2,7 +2,9 @@
 
 module;
 
-#include <vector>
+#include <cstdint>
+#include <cstring>
+#include <stdexcept>
 
 // clang-format off
 #ifdef _WIN32
