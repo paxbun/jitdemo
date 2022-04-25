@@ -12,8 +12,8 @@ module;
 export module jitdemo.expr.context;
 
 import jitdemo.expr.expression;
-import jitdemo.expr.expressions;
 import jitdemo.expr.function;
+import jitdemo.expr.expressions;
 
 using jitdemo::expr::Expression;
 using jitdemo::expr::Function;
