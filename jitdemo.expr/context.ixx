@@ -49,7 +49,7 @@ class Context final
      * @param name the name of the function.
      * @return a pointer to the function
      */
-    ::std::shared_ptr<Function> FindFunction(::std::u8string_view name) noexcept
+    ::std::shared_ptr<Function> FindFunction(::std::u8string_view name) const noexcept
     {
         auto it { functions_.find(::std::u8string(name)) };
         if (it == functions_.end())
