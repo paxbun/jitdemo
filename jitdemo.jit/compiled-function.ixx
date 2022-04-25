@@ -2,6 +2,7 @@
 
 module;
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -23,12 +24,15 @@ class CompiledFunction final : public Function
     using FunctionType  = double (*)(double*);
 
   private:
+    ::std::vector<::std::shared_ptr<Function>>         referencedFunctions_;
     ::std::vector<::std::uint8_t, AllocatorType> const func_;
 
   public:
-    CompiledFunction(::std::vector<::std::u8string>&&     params,
-                     ::std::vector<::std::uint8_t> const& func) :
+    CompiledFunction(::std::vector<::std::u8string>&&             params,
+                     ::std::vector<::std::shared_ptr<Function>>&& referencedFunctions,
+                     ::std::vector<::std::uint8_t> const&         func) :
         Function { ::std::move(params) },
+        referencedFunctions_ { ::std::move(referencedFunctions) },
         func_(func.data(), func.data() + func.size())
     {
         if (!AllocatorType::LockContent(const_cast<::std::uint8_t*>(func_.data()), func_.size()))
