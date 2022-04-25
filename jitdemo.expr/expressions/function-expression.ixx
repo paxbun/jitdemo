@@ -12,7 +12,7 @@ export module jitdemo.expr.expressions.function_expression;
 import jitdemo.expr.expression;
 import jitdemo.expr.function;
 
-using jitdemo::expr::Function;
+using ::jitdemo::expr::Function;
 
 export namespace jitdemo::expr::expressions
 {
