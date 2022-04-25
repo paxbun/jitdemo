@@ -67,11 +67,16 @@ class CompiledFunctionAllocator final
         return program;
     }
 
-    void deallocate(pointer program, [[maybe_unused]] size_type program_size) noexcept
+    void deallocate(pointer program, size_type programSize) noexcept
     {
-        size_type offset { reinterpret_cast<size_type*>(program)[-1] };
+        size_type const pageSize { GetPageSize() };
+        size_type const numPages { (programSize + pageSize - 1) / pageSize };
 
-        delete[](program - offset);
+        if (ChangeProtection(program, numPages * pageSize))
+        {
+            size_type offset { reinterpret_cast<size_type*>(program)[-1] };
+            delete[](program - offset);
+        }
     }
 };
 
