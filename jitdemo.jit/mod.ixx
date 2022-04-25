@@ -3,3 +3,4 @@
 export module jitdemo.jit;
 
 export import jitdemo.jit.compiled_function_allocator;
+export import jitdemo.jit.compiled_function;
