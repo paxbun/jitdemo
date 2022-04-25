@@ -58,29 +58,19 @@ using Shared = ::std::shared_ptr<T>;
 template <typename T>
 using Unique = ::std::unique_ptr<T>;
 
-/*
-
-x + 1
-
-*/
-
-// clang-format off
-/**
- * Syntax Definition
- * 
- * Func        ::   FuncSig "=" Expr
- * FuncSig     ::   Identifier "(" ( Identifier ( "," Identifier )* )? ")"
- * Expr        ::   AddExpr
- * AddExpr     ::   MulExpr ( ("+" | "-") MulExpr )*
- * MulExpr     ::   PowExpr ( ("*" | "/") PowExpr )*
- * PowExpr     ::   ParenExpr ( "^" | ParenExpr )*
- * ParenExpr   ::   "(" Expr ")"
- *             ::   IdenExpr
- * IdenExpr    ::   Identifier "(" ( Expr ( "," Expr )* )? ")"
- *             ::   Identifier
- *             ::   Numeric
- */
-// clang-format on
+// Syntax Definition
+//
+// Func        ::   FuncSig "=" Expr
+// FuncSig     ::   Identifier "(" ( Identifier ( "," Identifier )* )? ")"
+// Expr        ::   AddExpr
+// AddExpr     ::   MulExpr ( ("+" | "-") MulExpr )*
+// MulExpr     ::   PowExpr ( ("*" | "/") PowExpr )*
+// PowExpr     ::   ParenExpr ( "^" | ParenExpr )*
+// ParenExpr   ::   "(" Expr ")"
+//             ::   IdenExpr
+// IdenExpr    ::   Identifier "(" ( Expr ( "," Expr )* )? ")"
+//             ::   Identifier
+//             ::   Numeric
 
 namespace
 {
