@@ -33,16 +33,26 @@ class CompiledFunctionAllocator final
 
   private:
     static size_type GetPageSize() noexcept;
-    static bool      ChangeProtection(pointer p, size_type length) noexcept;
+    static bool      ChangeProtection(pointer p, size_type length, bool writable = true) noexcept;
+
+  public:
+  public:
+    static bool LockContent(pointer program, size_type programSize) noexcept
+    {
+        size_type const pageSize { GetPageSize() };
+        size_type const numPages { (programSize + pageSize - 1) / pageSize };
+
+        return ChangeProtection(program, numPages * pageSize);
+    }
 
   public:
     pointer allocate(size_type programSize)
     {
-        ::std::size_t const pageSize { GetPageSize() };
-        ::std::uint8_t*     program { new uint8_t[pageSize + programSize] };
+        size_type const pageSize { GetPageSize() };
+        size_type const numPages { (programSize + pageSize - 1) / pageSize };
 
-        size_type numPages { (programSize + pageSize - 1) / pageSize };
-        size_type offset { pageSize - (reinterpret_cast<size_type>(program) % pageSize) };
+        ::std::uint8_t* program { new uint8_t[pageSize + programSize + pageSize] };
+        size_type const offset { pageSize - (reinterpret_cast<size_type>(program) % pageSize) };
 
         program += offset;
 
@@ -79,10 +89,13 @@ jitdemo::jit::CompiledFunctionAllocator::GetPageSize() noexcept
     return static_cast<::std::size_t>(systemInfo.dwPageSize);
 }
 
-bool jitdemo::jit::CompiledFunctionAllocator::ChangeProtection(pointer p, size_type length) noexcept
+bool jitdemo::jit::CompiledFunctionAllocator::ChangeProtection(pointer   p,
+                                                               size_type length,
+                                                               bool      writable) noexcept
 {
-    DWORD before {};
-    return VirtualProtect(p, length, PAGE_EXECUTE_READWRITE, &before);
+    ::DWORD newProtection { writable ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE };
+    ::DWORD before {};
+    return VirtualProtect(p, length, newProtection, &before);
 }
 
 #else
@@ -93,9 +106,14 @@ jitdemo::jit::CompiledFunctionAllocator::GetPageSize() noexcept
     return static_cast<::std::size_t>(::getpagesize());
 }
 
-bool jitdemo::jit::CompiledFunctionAllocator::ChangeProtection(pointer p, size_type length) noexcept
+bool jitdemo::jit::CompiledFunctionAllocator::ChangeProtection(pointer   p,
+                                                               size_type length,
+                                                               bool      writable) noexcept
 {
-    return ::mprotect(p, length, PROT_READ | PROT_WRITE | PROT_EXEC) == 0;
+    int newProtection { PROT_EXEC };
+    if (writable)
+        newProtection |= (PROT_READ | PROT_WRITE);
+    return ::mprotect(p, length, newProtection) == 0;
 }
 
 #endif
