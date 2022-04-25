@@ -11,6 +11,7 @@ add_library(jitdemo.expr
 	"expressions/variable-expression.ixx"
 	"expressions/mod.ixx"
 	"function.ixx"
+	"expression-tree-function.ixx"
 	"context.ixx"
 	"compilation-error.ixx"
 	"parsing/token.ixx"

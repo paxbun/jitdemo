@@ -10,24 +10,25 @@ module;
 
 export module jitdemo.expr.parsing.parse;
 
-import jitdemo.expr.function;
 import jitdemo.expr.compilation_error;
-import jitdemo.expr.parsing.token;
+import jitdemo.expr.context;
+import jitdemo.expr.expression;
+import jitdemo.expr.expression_tree_function;
+import jitdemo.expr.function;
 import jitdemo.expr.expressions.binary_expression;
 import jitdemo.expr.expressions.constant_expression;
 import jitdemo.expr.expressions.variable_expression;
 import jitdemo.expr.expressions.function_expression;
-import jitdemo.expr.expression;
-import jitdemo.expr.context;
+import jitdemo.expr.parsing.token;
 
 export namespace jitdemo::expr::parsing
 {
 
 struct ParsingResult
 {
-    ::std::u8string_view            functionName;
-    ::std::shared_ptr<Function>     function;
-    ::std::vector<CompilationError> errors;
+    ::std::u8string_view                      functionName;
+    ::std::shared_ptr<ExpressionTreeFunction> function;
+    ::std::vector<CompilationError>           errors;
 };
 
 ParsingResult Parse(Context const& context, ::std::span<Token> tokens) noexcept;
@@ -40,6 +41,7 @@ using ::jitdemo::expr::CompilationError;
 using ::jitdemo::expr::CompilationErrorType;
 using ::jitdemo::expr::Context;
 using ::jitdemo::expr::Expression;
+using ::jitdemo::expr::ExpressionTreeFunction;
 using ::jitdemo::expr::Function;
 using ::jitdemo::expr::expressions::BinaryExpression;
 using ::jitdemo::expr::expressions::BinaryExpressionOps;
@@ -148,8 +150,8 @@ struct FunctionSignature
 
 struct FunctionWithName
 {
-    ::std::u8string_view functionName;
-    Shared<Function>     function;
+    ::std::u8string_view           functionName;
+    Shared<ExpressionTreeFunction> function;
 };
 
 FunctionWithName ParseFunc(ParsingState& state, Context const& context);
@@ -183,8 +185,8 @@ FunctionWithName ParseFunc(ParsingState& state, Context const& context)
     return FunctionWithName {
         .functionName { signature.functionName },
         .function {
-            Shared<Function> {
-                new Function {
+            Shared<ExpressionTreeFunction> {
+                new ExpressionTreeFunction {
                     ::std::vector<::std::u8string>(signature.parameterNames.begin(),
                                                    signature.parameterNames.end()),
                     ::std::move(expression),
