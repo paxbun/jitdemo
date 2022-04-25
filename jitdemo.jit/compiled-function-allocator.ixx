@@ -2,7 +2,6 @@
 
 module;
 
-#include <functional>
 #include <vector>
 
 // clang-format off
