@@ -262,6 +262,7 @@ Unique<Expression> ParsePowExpr(EXPR_PARSER_PARAMS)
     Unique<Expression> left { ParseParenExpr(FORWARD_EXPR_PARSER_PARAMS) };
     while (state.NextHasType(TokenType::Caret))
     {
+        state.Match(TokenType::Caret);
         Unique<Expression> right { ParseParenExpr(FORWARD_EXPR_PARSER_PARAMS) };
         left = Unique<BinaryExpression> {
             new BinaryExpression {
