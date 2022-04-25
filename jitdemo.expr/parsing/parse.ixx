@@ -56,12 +56,18 @@ using Shared = ::std::shared_ptr<T>;
 template <typename T>
 using Unique = ::std::unique_ptr<T>;
 
+/*
+
+x + 1
+
+*/
+
 // clang-format off
 /**
  * Syntax Definition
  * 
  * Func        ::   FuncSig "=" Expr
- * FuncSig     ::   Identifier "(" Identifier ( "," Identifier )* ")"
+ * FuncSig     ::   Identifier "(" ( Identifier ( "," Identifier )* )? ")"
  * Expr        ::   AddExpr
  * AddExpr     ::   MulExpr ( ("+" | "-") MulExpr )*
  * MulExpr     ::   PowExpr ( ("*" | "/") PowExpr )*
@@ -194,11 +200,14 @@ FunctionSignature ParseFuncSig(ParsingState& state)
     ::std::vector<::std::u8string_view> parameterNames;
 
     state.Match(TokenType::ParenthesisOpen);
-    parameterNames.push_back(state.Match(TokenType::Identifier).text);
-    while (state.NextHasType(TokenType::Comma))
+    if (state.NextHasType(TokenType::Identifier))
     {
-        state.Match(TokenType::Comma);
         parameterNames.push_back(state.Match(TokenType::Identifier).text);
+        while (state.NextHasType(TokenType::Comma))
+        {
+            state.Match(TokenType::Comma);
+            parameterNames.push_back(state.Match(TokenType::Identifier).text);
+        }
     }
     state.Match(TokenType::ParenthesisClose);
 
