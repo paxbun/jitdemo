@@ -5,14 +5,14 @@ module;
 #include <cmath>
 #include <stdexcept>
 
-export module jitdemo.expr.expressions.builtin_function_expression;
+export module jitdemo.expr.builtin_function;
 
-import jitdemo.expr.expression;
+import jitdemo.expr.function;
 
-export namespace jitdemo::expr::expressions
+export namespace jitdemo::expr
 {
 
-class UnaryBuiltinFunctionExpression : public Expression
+class UnaryBuiltinFunction final : public Function
 {
   public:
     using FunctionType = double (*)(double) noexcept;
@@ -27,7 +27,7 @@ class UnaryBuiltinFunctionExpression : public Expression
     }
 
   public:
-    UnaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
+    UnaryBuiltinFunction(FunctionType func) : Function { { u8"x" } }, func_ { func }
     {
         if (func == nullptr)
             throw ::std::invalid_argument { "func must not be nullptr" };
@@ -43,7 +43,7 @@ class UnaryBuiltinFunctionExpression : public Expression
     }
 };
 
-class BinaryBuiltinFunctionExpression : public Expression
+class BinaryBuiltinFunction final : public Function
 {
   public:
     using FunctionType = double (*)(double, double) noexcept;
@@ -58,7 +58,7 @@ class BinaryBuiltinFunctionExpression : public Expression
     }
 
   public:
-    BinaryBuiltinFunctionExpression(FunctionType func) : func_ { func }
+    BinaryBuiltinFunction(FunctionType func) : Function { { u8"x", u8"y" } }, func_ { func }
     {
         if (func == nullptr)
             throw ::std::invalid_argument { "func must not be nullptr" };

@@ -12,15 +12,13 @@ module;
 export module jitdemo.expr.context;
 
 import jitdemo.expr.expression;
-import jitdemo.expr.expression_tree_function;
 import jitdemo.expr.function;
-import jitdemo.expr.expressions;
+import jitdemo.expr.builtin_function;
 
+using ::jitdemo::expr::BinaryBuiltinFunction;
 using ::jitdemo::expr::Expression;
-using ::jitdemo::expr::ExpressionTreeFunction;
 using ::jitdemo::expr::Function;
-using ::jitdemo::expr::expressions::BinaryBuiltinFunctionExpression;
-using ::jitdemo::expr::expressions::UnaryBuiltinFunctionExpression;
+using ::jitdemo::expr::UnaryBuiltinFunction;
 
 export namespace jitdemo::expr
 {
@@ -88,34 +86,20 @@ namespace
 {
 
 ::std::pair<::std::u8string, ::std::shared_ptr<Function>>
-MakeUnaryFunction(const char8_t* name, UnaryBuiltinFunctionExpression::FunctionType function)
+MakeUnaryFunction(const char8_t* name, UnaryBuiltinFunction::FunctionType function)
 {
     return {
         name,
-        ::std::shared_ptr<Function> {
-            new ExpressionTreeFunction {
-                { u8"x" },
-                ::std::unique_ptr<UnaryBuiltinFunctionExpression> {
-                    new UnaryBuiltinFunctionExpression { function },
-                },
-            },
-        },
+        ::std::shared_ptr<Function> { new UnaryBuiltinFunction { function } },
     };
 }
 
 ::std::pair<::std::u8string, ::std::shared_ptr<Function>>
-MakeBinaryFunction(const char8_t* name, BinaryBuiltinFunctionExpression::FunctionType function)
+MakeBinaryFunction(const char8_t* name, BinaryBuiltinFunction::FunctionType function)
 {
     return {
         name,
-        ::std::shared_ptr<Function> {
-            new ExpressionTreeFunction {
-                { u8"x", u8"y" },
-                ::std::unique_ptr<BinaryBuiltinFunctionExpression> {
-                    new BinaryBuiltinFunctionExpression { function },
-                },
-            },
-        },
+        ::std::shared_ptr<Function> { new BinaryBuiltinFunction { function } },
     };
 }
 
