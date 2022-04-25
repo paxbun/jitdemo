@@ -7,27 +7,42 @@
 #include <vector>
 
 import jitdemo.expr;
+import jitdemo.jit;
 
 using ::jitdemo::expr::Context;
 using ::jitdemo::expr::parsing::Parse;
 using ::jitdemo::expr::parsing::Tokenize;
+using ::jitdemo::jit::Compile;
 
 int main(int argc, char** argv)
 {
     Context context;
-    auto    source { u8"f(x, y) = x^3 / x * sin(x) + .5 * log(x, 10.2) -  y   " };
-    auto    result { Tokenize(source) };
-    auto    parseResult { Parse(context, result.tokens) };
+    // auto    source { u8"f(x, y) = x^3 / x * sin(x) + .5 * log(x, 10.2) -  y   " };
+    auto source { u8"f(x, y) = (x * 2 - 3 / y * y) * x" };
+    auto result { Tokenize(source) };
+    auto parseResult { Parse(context, result.tokens) };
 
-    double params[] { 1.3, 4.6 };
-    double expectedValue {
-        ::std::pow(params[0], 3) / params[0] * ::std::sin(params[0])
-            + .5 * ::std::log(10.2) / ::std::log(params[0]) - params[1],
-    };
-    double value { parseResult.function->Evaluate(params) };
-    ::std::cout << "Expected: " << ::std::setprecision(8) << expectedValue << '\n';
-    ::std::cout << "Actual: " << std::setprecision(8) << value << '\n';
-    ::std::cout << "Ok: " << ::std::boolalpha << (::std::abs(value - 1.45429756154) < 1e-8) << '\n';
+    double params[] { 1123.3, 4.128973 };
+
+    {
+        double value {
+            ::std::pow(params[0], 3) / params[0] * ::std::sin(params[0])
+                + .5 * ::std::log(10.2) / ::std::log(params[0]) - params[1],
+        };
+        ::std::cout << "Expected: " << ::std::setprecision(8) << value << '\n';
+    }
+
+    auto exprTreeFunction { parseResult.function };
+    {
+        double value { exprTreeFunction->Evaluate(params) };
+        ::std::cout << "Actual (ExprTree): " << std::setprecision(8) << value << '\n';
+    }
+
+    auto compiledFunction { Compile(exprTreeFunction) };
+    {
+        double value { compiledFunction->Evaluate(params) };
+        ::std::cout << "Actual (Compiled): " << std::setprecision(8) << value << '\n';
+    }
 
     return 0;
 }
