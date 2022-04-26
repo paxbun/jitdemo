@@ -1,5 +1,6 @@
 // Copyright (c) 2022 Chanjung Kim. All rights reserved.
 
+#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iostream>
@@ -34,12 +35,40 @@ int main(int argc, char** argv)
 
     auto exprTreeFunction { parseResult.function };
     {
+        ::std::chrono::high_resolution_clock clock {};
+
+        auto start { clock.now() };
+        for (int i {}; i < 1'000'000; ++i)
+        {
+            double value { exprTreeFunction->Evaluate(params) };
+        }
+        auto end { clock.now() };
+
+        double seconds {
+            ::std::chrono::duration_cast<::std::chrono::duration<double>>(end - start).count(),
+        };
+        ::std::cout << seconds << " s\n";
+
         double value { exprTreeFunction->Evaluate(params) };
         ::std::cout << "Actual (ExprTree): " << std::setprecision(8) << value << '\n';
     }
 
     auto compiledFunction { Compile(exprTreeFunction) };
     {
+        ::std::chrono::high_resolution_clock clock {};
+
+        auto start { clock.now() };
+        for (int i {}; i < 1'000'000; ++i)
+        {
+            double value { compiledFunction->Evaluate(params) };
+        }
+        auto end { clock.now() };
+
+        double seconds {
+            ::std::chrono::duration_cast<::std::chrono::duration<double>>(end - start).count(),
+        };
+        ::std::cout << seconds << " s\n";
+
         double value { compiledFunction->Evaluate(params) };
         ::std::cout << "Actual (Compiled): " << std::setprecision(8) << value << '\n';
     }
