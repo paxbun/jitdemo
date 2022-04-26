@@ -69,7 +69,7 @@ To Transmute(From from)
 jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
 {
     ::std::vector<::std::shared_ptr<Function>>   referencedFunctions;
-    static ::std::vector<::std::uint8_t>         code;
+    ::std::vector<::std::uint8_t>                code;
     ::std::vector<::std::pair<Expression*, int>> expressionStack;
     expressionStack.push_back({ function->expr(), 0 });
 
@@ -118,7 +118,31 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                     code.insert(code.end(), { 0xf2, 0x0f, 0x5e, 0xc1 });
                     break;
                 case BinaryExpressionOps::Power:
-                    throw ::std::invalid_argument { "unexpected type of operation" };
+                {
+                    struct PowerFunction
+                    {
+                        static double Power(double lhs, double rhs) noexcept
+                        {
+                            return ::std::pow(lhs, rhs);
+                        }
+                    };
+
+                    ::std::array<::std::uint8_t, 8> value {
+                        Transmute<double (*)(double, double) noexcept,
+                                  ::std::array<::std::uint8_t, 8>>(&PowerFunction::Power),
+                    };
+
+                    // sub rsp, 72 ; for parameter homing space
+                    code.insert(code.end(), { 0x48, 0x83, 0xec, 0x48 });
+                    // movavs rax, ::std::pow
+                    code.insert(code.end(), { 0x48, 0xB8 });
+                    code.insert(code.end(), value.begin(), value.end());
+
+                    // call rax
+                    code.insert(code.end(), { 0xff, 0xd0 });
+                    // add rsp, 72
+                    code.insert(code.end(), { 0x48, 0x83, 0xc4, 0x48 });
+                }
                 }
 
                 // movq rax, xmm0
