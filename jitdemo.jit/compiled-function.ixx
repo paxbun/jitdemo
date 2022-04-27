@@ -19,7 +19,6 @@ module;
 export module jitdemo.jit.compiled_function;
 
 import jitdemo.expr.function;
-import jitdemo.jit.compiled_function_allocator;
 
 using ::jitdemo::expr::Function;
 
@@ -29,7 +28,6 @@ export namespace jitdemo::jit
 class CompiledFunction final : public Function
 {
   public:
-    using AllocatorType = CompiledFunctionAllocator<::std::uint8_t>;
     using FunctionType  = double (*)(double*);
 
   private:
