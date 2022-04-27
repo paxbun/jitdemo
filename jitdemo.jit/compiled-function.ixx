@@ -58,7 +58,7 @@ class CompiledFunction final : public Function
     {
         Allocate();
         ::std::memcpy(program_, func.data(), func.size());
-        LockContent();
+        // LockContent();
     }
 
     ~CompiledFunction()
