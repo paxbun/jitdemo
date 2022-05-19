@@ -32,6 +32,11 @@ enum class CompilationErrorType
     UndefinedFunction,
 
     /**
+     * The number of arguments and the number of parameters do not match. 
+     */
+    InvalidNumberOfArguments,
+
+    /**
      * There is no parameter with the given name in the current function.
      */
     UndefinedParamter,
