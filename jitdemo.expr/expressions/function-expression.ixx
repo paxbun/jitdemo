@@ -27,6 +27,12 @@ class FunctionExpression : public Expression
     ::std::vector<::std::unique_ptr<Expression>> exprs_;
 
   public:
+    ::std::shared_ptr<Function> const& function() const noexcept
+    {
+        return function_;
+    }
+
+  public:
     FunctionExpression(::std::shared_ptr<Function> const&             function,
                        ::std::vector<::std::unique_ptr<Expression>>&& expr) :
         function_ { function },
