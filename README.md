@@ -1,5 +1,7 @@
 # JIT demo
 
+![Result on Intel i5-8250U, release mode](./result.png)
+
 A simple example showing how JIT works. The program take functions as inputs from users and yields the zeros of the functions.
 
 # Project structure

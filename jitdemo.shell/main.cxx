@@ -28,6 +28,7 @@ int main(int argc, char** argv)
     ::std::string sourceNonUtf8 {
         "f(x, y) = (x + 1) * (y + 2) - (x + 3) ^ 5 / (x / 4) - 1.3 * y * y",
     };
+    ::std::cout << sourceNonUtf8 << "\n\n";
 
     ::std::u8string_view source {
         reinterpret_cast<char8_t*>(sourceNonUtf8.data()),
