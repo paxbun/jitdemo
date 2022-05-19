@@ -32,6 +32,9 @@ class FunctionExpression : public Expression
         function_ { function },
         exprs_ { ::std::move(expr) }
     {
+        if (function->params().size() != exprs_.size())
+            throw ::std::invalid_argument { "invalid number of arguments" };
+
         if (function_ == nullptr)
             throw ::std::invalid_argument { "function must not be nullptr" };
     }
@@ -47,6 +50,16 @@ class FunctionExpression : public Expression
             values.push_back(expr->Evaluate(params));
         }
         return function_->Evaluate(values);
+    }
+
+    size_t GetNumArguments() const noexcept
+    {
+        return exprs_.size();
+    }
+
+    Expression* operator[](::std::size_t idx) const
+    {
+        return exprs_[idx].get();
     }
 };
 
