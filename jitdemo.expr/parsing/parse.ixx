@@ -324,7 +324,16 @@ Unique<Expression> ParseIdenExpr(EXPR_PARSER_PARAMS)
                 }
             }
 
-            state.Match(TokenType::ParenthesisClose);
+            Token const& parenthesisCloseToken { state.Match(TokenType::ParenthesisClose) };
+
+            if (function->params().size() != arguments.size())
+            {
+                throw CompilationError {
+                    .type { CompilationErrorType::InvalidNumberOfArguments },
+                    .begin { identifierToken.begin },
+                    .end { parenthesisCloseToken.end },
+                };
+            }
 
             return Unique<Expression> {
                 new FunctionExpression {
