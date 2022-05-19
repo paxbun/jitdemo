@@ -57,7 +57,7 @@ class FunctionExpression : public Expression
         return exprs_.size();
     }
 
-    Expression* operator[](::std::size_t idx) const
+    Expression* GetArgumentAt(::std::size_t idx) const
     {
         return exprs_[idx].get();
     }
