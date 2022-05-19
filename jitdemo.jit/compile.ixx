@@ -17,6 +17,7 @@ module;
 #include <bitset>
 #include <cmath>
 #include <memory>
+#include <numeric>
 #include <ranges>
 #include <stdexcept>
 #include <vector>
@@ -79,6 +80,8 @@ enum class FloatRegister
 
 constexpr ::std::size_t NumFloatRegisters { 8 };
 
+constexpr ::std::size_t NumBytesInHomingSpace { 32 };
+
 class MemoryOccupationManager
 {
   private:
@@ -134,8 +137,48 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
 
     MemoryOccupationManager manager;
 
+    auto InsertMovAbs {
+        [&code](auto&& value) {
+            ::std::array<::std::uint8_t, 8> transmuted {
+                Transmute<::std::decay_t<decltype(value)>, ::std::array<::std::uint8_t, 8>>(value),
+            };
+            code.insert(code.end(), { 0x48, 0xB8 });
+            code.insert(code.end(), transmuted.begin(), transmuted.end());
+        },
+    };
+
+    auto Mov {
+        [&code](FloatRegister dest, FloatRegister src) {
+            if (dest != src)
+            {
+                // mov xmm[dest], xmm[src]
+                ::std::uint8_t instLastByte {
+                    static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                                | static_cast<int>(src)),
+                };
+                code.insert(code.end(), { 0xf3, 0x0f, 0x7e, instLastByte });
+            }
+        },
+    };
+
+    // push rbp
+    code.insert(code.end(), { 0x55 });
+    // mov rbp, rsp
+    code.insert(code.end(), { 0x48, 0x89, 0xe5 });
     // sub rsp, 0x00
     code.insert(code.end(), { 0x48, 0x83, 0xec, 0x00 });
+    constexpr ::std::size_t stackSizeIdx { 7 };
+
+#ifdef _WIN32
+    // rcx holds the value of the first argument in x64 Windows
+    constexpr int paramReg { 0x01 };
+#else
+    // rdi holds the value of the first argument in x64 Linux
+    constexpr int paramReg { 0x07 };
+#endif
+
+    // mov qword ptr [rbp - 0x08], paramReg
+    code.insert(code.end(), { 0x48, 0x89, 0x45 | (paramReg << 3), 0xf8 });
 
     expressionStack.push_back({ function->expr(), 0 });
 
@@ -148,17 +191,12 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         {
             FloatRegister const reg { manager.BorrowNewRegister() };
 
-            ::std::array<::std::uint8_t, 8> value {
-                Transmute<double, ::std::array<::std::uint8_t, 8>>(constantExpression->value()),
-            };
-
             ::std::uint8_t sourceDestWithPrefix {
-                static_cast<::std::uint8_t>(0xc0 | static_cast<int>(reg) << 3),
+                static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(reg) << 3)),
             };
 
             // movabs rax, value
-            code.insert(code.end(), { 0x48, 0xB8 });
-            code.insert(code.end(), value.begin(), value.end());
+            InsertMovAbs(constantExpression->value());
 
             // movq xmm[reg], rax
             code.insert(code.end(), { 0x66, 0x48, 0x0f, 0x6e, sourceDestWithPrefix });
@@ -171,13 +209,7 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
             FloatRegister const reg { manager.BorrowNewRegister() };
 
             ::std::size_t offset { variableExpression->idx() * sizeof(double) };
-#ifdef _WIN32
-            // rcx holds the value of the first argument in x64 Windows
-            constexpr int paramReg { 0x01 };
-#else
-            // rdi holds the value of the first argument in x64 Linux
-            constexpr int paramReg { 0x07 };
-#endif
+
             // movq xmm[reg], QWORD PTR [(rcx if windows else rdi) + idx * sizeof(double)]
             if (offset <= 0x7F)
             {
@@ -236,7 +268,7 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                 // evaluationStack.pop_back();
 
                 ::std::uint8_t sourceDestWithPrefix {
-                    static_cast<::std::uint8_t>(0xc0 | static_cast<int>(lhs) << 3
+                    static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(lhs) << 3)
                                                 | static_cast<int>(rhs)),
                 };
 
@@ -261,6 +293,36 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                     code.insert(code.end(), { 0xf2, 0x0f, 0x5e, sourceDestWithPrefix });
                     break;
                 case BinaryExpressionOps::Power:
+                {
+                    {
+                        ::std::size_t requiredNumStackBytes { 32 };
+                        ::std::size_t idx {};
+                        for (FloatRegister reg : manager.GetOccupiedRegisters())
+                        {
+                            if (reg == lhs)
+                                continue;
+
+                            ::std::uint8_t sourceWithPrefix {
+                                static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
+                            };
+
+                            // offset = numBytesInHomingSpace + idx * sizeof(double)
+                            // Since the number of registers is up to 8, offset is always less than
+                            // 128
+                            auto offset {
+                                static_cast<::std::uint8_t>(NumBytesInHomingSpace
+                                                            + idx * sizeof(double)),
+                            };
+
+                            // movq qword ptr [rsp + offset], xmm[reg]
+                            code.insert(code.end(),
+                                        { 0x66, 0x0f, 0xd6, sourceWithPrefix, 0x24, offset });
+
+                            requiredNumStackBytes += sizeof(double);
+                            ++idx;
+                        }
+                        numBytesInStack = ::std::max(numBytesInStack, requiredNumStackBytes);
+                    }
 
                     struct PowerFunction
                     {
@@ -270,24 +332,66 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                         }
                     };
 
-                    ::std::array<::std::uint8_t, 8> value {
-                        Transmute<double (*)(double, double) noexcept,
-                                  ::std::array<::std::uint8_t, 8>>(&PowerFunction::Power),
-                    };
+                    if (rhs == FloatRegister::Xmm0)
+                    {
+                        if (lhs == FloatRegister::Xmm1)
+                        {
+                            // swap
+                            Mov(FloatRegister::Xmm2, FloatRegister::Xmm0);
+                            Mov(FloatRegister::Xmm0, FloatRegister::Xmm1);
+                            Mov(FloatRegister::Xmm1, FloatRegister::Xmm2);
+                        }
+                        else
+                        {
+                            Mov(FloatRegister::Xmm1, rhs);
+                            Mov(FloatRegister::Xmm0, lhs);
+                        }
+                    }
+                    else
+                    {
+                        Mov(FloatRegister::Xmm0, lhs);
+                        Mov(FloatRegister::Xmm1, rhs);
+                    }
 
-                    // sub rsp, 72 ; for parameter homing space
-                    code.insert(code.end(), { 0x48, 0x83, 0xec, 0x48 });
+                    // movabs rax, ::std::pow
+                    InsertMovAbs(&PowerFunction::Power);
 
-                    // movavs rax, ::std::pow
-                    code.insert(code.end(), { 0x48, 0xB8 });
-                    code.insert(code.end(), value.begin(), value.end());
                     // call rax
                     code.insert(code.end(), { 0xff, 0xd0 });
 
-                    // add rsp, 72
-                    code.insert(code.end(), { 0x48, 0x83, 0xc4, 0x48 });
+                    // mov xmm[lhs], xmm0
+                    Mov(lhs, FloatRegister::Xmm0);
 
-                    throw ::std::invalid_argument { "unexpected type of expression" };
+                    // mov paramReg, qword ptr [rbp - 0x08]
+                    code.insert(code.end(), { 0x48, 0x8b, 0x45 | (paramReg << 3), 0xf8 });
+
+                    {
+                        ::std::size_t idx {};
+                        for (FloatRegister reg : manager.GetOccupiedRegisters())
+                        {
+                            if (reg == lhs)
+                                continue;
+
+                            ::std::uint8_t sourceWithPrefix {
+                                static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
+                            };
+
+                            // offset = numBytesInHomingSpace + idx * sizeof(double)
+                            // Since the number of registers is up to 8, offset is always less than
+                            // 128
+                            auto offset {
+                                static_cast<::std::uint8_t>(NumBytesInHomingSpace
+                                                            + idx * sizeof(double)),
+                            };
+
+                            // movq xmm[reg], qword ptr [rsp + offset]
+                            code.insert(code.end(),
+                                        { 0xf3, 0x0f, 0x7e, sourceWithPrefix, 0x24, offset });
+
+                            ++idx;
+                        }
+                    }
+                }
                 }
 
                 // evaluationStack.push_back(lhs);
@@ -297,6 +401,58 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         }
         else if (auto functionExpression { dynamic_cast<FunctionExpression*>(expression) })
         {
+            if (numOperandsProcessed != 0)
+            {
+                FloatRegister const operandReg { evaluationStack.back() };
+                evaluationStack.pop_back();
+
+                // operandIdx = numOperandsProcessed - 1
+                // offset = operandIdx * sizeof(double) + numBytesInHomingSpace
+                // offset = numOperandsProcessed * sizeof(double) + 24
+                ::std::size_t offset { numOperandsProcessed * sizeof(double) + 24 };
+
+                // mov qword ptr [rsp + offset], xmm[operandReg]
+                // TODO
+            }
+
+            if (numOperandsProcessed != functionExpression->GetNumArguments())
+            {
+                expressionStack.back().second = numOperandsProcessed + 1;
+                expressionStack.push_back({
+                    functionExpression->GetArgumentAt(numOperandsProcessed),
+                    0,
+                });
+            }
+            else
+            {
+                ::std::shared_ptr<Function> const& function { functionExpression->function() };
+                referencedFunctions.push_back(function);
+
+                struct FunctionCallProxy
+                {
+                    static double Call(Function*     func,
+                                       double*       params,
+                                       ::std::size_t numParams) noexcept
+                    {
+                        return func->Evaluate(::std::span<double> { params, numParams });
+                    }
+                };
+
+                // Windows: rcx rdx r8
+                // movabs r8, numParams
+                // lea rdx, [rsp + numBytesInHomingSpace]
+                // movabs rcx, function.get()
+                // movabs rax, &FunctionCallProxy::Call
+                // call rax
+                //
+                // Linux: rdi rsi rdx
+                // movabs rdx, numParams
+                // lea rsi, [rsp + numBytesInHomingSpace]
+                // movabs rdi, function.get()
+                // movabs rax, &FunctionCallProxy::Call
+                // call rax
+                // TODO
+            }
             throw ::std::invalid_argument { "unexpected type of expression" };
         }
         else
@@ -305,24 +461,13 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         }
     }
 
-    FloatRegister finalResultReg { evaluationStack.back() };
-    if (finalResultReg != FloatRegister::Xmm0)
-    {
-        // mov xmm0, xmm[finalResultReg]
-        ::std::uint8_t instLastByte {
-            static_cast<::std::uint8_t>(0xc0 | static_cast<int>(finalResultReg)),
-        };
-        code.insert(code.end(), { 0xf3, 0x0f, 0x7e, instLastByte });
-    }
+    // mov xmm0, xmm[finalResultReg]
+    Mov(FloatRegister::Xmm0, evaluationStack.back());
 
     // for 16-byte stack alignment requirement
-    if (numBytesInStack % 16 < 8)
+    if (numBytesInStack % 16 > 0)
     {
-        numBytesInStack += 8 - numBytesInStack % 16;
-    }
-    else if (numBytesInStack % 16 > 8)
-    {
-        numBytesInStack += 24 - numBytesInStack % 16;
+        numBytesInStack += 16 - numBytesInStack % 16;
     }
 
     if (numBytesInStack <= 0x7F)
@@ -330,14 +475,11 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         ::std::uint8_t operand { static_cast<::std::uint8_t>(numBytesInStack) };
 
         // modify 'sub rsp, 0x00' in the prolog
-        code[3] = operand;
-
-        // add rsp, numBytesInStack
-        code.insert(code.end(), { 0x48, 0x83, 0xc4, operand });
+        code[stackSizeIdx] = operand;
     }
     else if (numBytesInStack <= 0x7FFFFFFF)
     {
-        code[1] = 0x81;
+        code[stackSizeIdx - 2] = 0x81;
 
         ::std::array<::std::uint8_t, 4> operand {
             Transmute<::std::uint32_t, ::std::array<::std::uint8_t, 4>>(
@@ -345,18 +487,16 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         };
 
         // modify 'sub rsp, 0x00' in the prolog
-        code[3] = operand[0];
-        code.insert(code.begin() + 4, operand.begin() + 1, operand.end());
-
-        // add rsp, numBytesInStack
-        code.insert(code.end(), { 0x48, 0x81, 0xc4 });
-        code.insert(code.end(), operand.begin(), operand.end());
+        code[stackSizeIdx] = operand[0];
+        code.insert(code.begin() + stackSizeIdx + 1, operand.begin() + 1, operand.end());
     }
     else
     {
         throw ::std::runtime_error { "stack size too big" };
     }
 
+    // leave
+    code.push_back(0xc9);
     // ret
     code.push_back(0xc3);
 
