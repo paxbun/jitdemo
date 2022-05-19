@@ -3,7 +3,6 @@
 cmake_minimum_required(VERSION 3.13)
 
 add_library(jitdemo.jit
-	"memory-occupation-manager.ixx"
 	"compiled-function.ixx"
 	"compile.ixx"
 	"mod.ixx"
