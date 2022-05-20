@@ -20,3 +20,17 @@ Explore the codes in the following order:
 * `expr`: Contains expression tree type definitions and parsing logic.
 * `jit`: Contains JIT logic.
 * `shell`: Contains a simple shell implementation using the features in the above 2 modules. `main()` is in `shell/main.cxx`. (incomplete)
+
+# TODOs
+
+* Add unit tests
+* Add detailed benchmark results
+* Add optimizations
+* Add support for funcion declaration, function renaming, ...
+  ```
+  >>> DECLARE f(x, y) = x * y + 2.4
+  >>> SHOW f
+  f(x, y) = x * y + 2.4
+  >>> DELETE f
+  >>> LIST
+  ```
