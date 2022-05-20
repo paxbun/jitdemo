@@ -21,6 +21,38 @@ using ::jitdemo::expr::parsing::Parse;
 using ::jitdemo::expr::parsing::Tokenize;
 using ::jitdemo::jit::Compile;
 
+auto CheckTime(auto&& func)
+{
+    if constexpr (::std::is_same_v<void, decltype(func())>)
+    {
+        ::std::chrono::high_resolution_clock clock {};
+
+        auto start { clock.now() };
+        func();
+        auto end { clock.now() };
+
+        double seconds {
+            ::std::chrono::duration_cast<::std::chrono::duration<double>>(end - start).count(),
+        };
+        ::std::cout << seconds << " s\n";
+    }
+    else
+    {
+        ::std::chrono::high_resolution_clock clock {};
+
+        auto start { clock.now() };
+        auto result { func() };
+        auto end { clock.now() };
+
+        double seconds {
+            ::std::chrono::duration_cast<::std::chrono::duration<double>>(end - start).count(),
+        };
+        ::std::cout << seconds << " s\n";
+
+        return result;
+    }
+}
+
 int main(int argc, char** argv)
 {
     Context context;
@@ -35,10 +67,16 @@ int main(int argc, char** argv)
         reinterpret_cast<char8_t*>(sourceNonUtf8.data() + sourceNonUtf8.size()),
     };
 
-    auto result { Tokenize(source) };
-    auto parseResult { Parse(context, result.tokens) };
-    auto exprTreeFunction { parseResult.function };
-    auto compiledFunction { Compile(exprTreeFunction) };
+    auto tokenStream { Tokenize(source) };
+
+    ::std::cout << "Parsing: ";
+    auto exprTreeFunction {
+        CheckTime([&]() { return Parse(context, tokenStream.tokens).function; }),
+    };
+    ::std::cout << "JIT Compilation: ";
+    auto compiledFunction {
+        CheckTime([&]() { return Compile(exprTreeFunction); }),
+    };
     auto nativeFunction {
         ::std::shared_ptr<Function> {
             new BinaryBuiltinFunction {
@@ -48,6 +86,7 @@ int main(int argc, char** argv)
             },
         },
     };
+    ::std::cout << '\n';
 
     ::std::vector<::std::pair<::std::string, ::std::shared_ptr<Function>>> functions {
         { "ExprTree", exprTreeFunction },
@@ -72,22 +111,16 @@ int main(int argc, char** argv)
 
     for (auto& [functionName, function] : functions)
     {
-        ::std::chrono::high_resolution_clock clock {};
-
-        auto start { clock.now() };
-        for (int i {}; i < 1'000'000; ++i)
-        {
-            double value { function->Evaluate(arguments) };
-        }
-        auto end { clock.now() };
-
-        double seconds {
-            ::std::chrono::duration_cast<::std::chrono::duration<double>>(end - start).count(),
-        };
-        ::std::cout << seconds << " s\n";
-
         double value { function->Evaluate(arguments) };
         ::std::cout << "Actual (" << functionName << "): " << std::setprecision(8) << value << '\n';
+
+        CheckTime([&]() {
+            for (int i {}; i < 1'000'000; ++i)
+            {
+                double value { function->Evaluate(arguments) };
+            }
+        });
+        ::std::cout << '\n';
     }
     return 0;
 }
