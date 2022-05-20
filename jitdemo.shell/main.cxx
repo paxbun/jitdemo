@@ -58,7 +58,7 @@ int main(int argc, char** argv)
     Context context;
 
     ::std::string sourceNonUtf8 {
-        "f(x, y) = (x + 1) * (y + 2) - (x + 3) ^ 5 / (x / 4) - 1.3 * y * y",
+        "f(x, y) = (x + 1) * (y + 2) - (x + 3) ^ 5 / cos (x / 4) - sin (1.3 * y * y)",
     };
     ::std::cout << sourceNonUtf8 << "\n\n";
 
@@ -81,7 +81,8 @@ int main(int argc, char** argv)
         ::std::shared_ptr<Function> {
             new BinaryBuiltinFunction {
                 [](double x, double y) noexcept {
-                    return (x + 1) * (y + 2) - ::std::pow((x + 3), 5) / (x / 4) - 1.3 * y * y;
+                    return (x + 1) * (y + 2) - ::std::pow((x + 3), 5) / ::std::cos(x / 4)
+                           - ::std::sin(1.3 * y * y);
                 },
             },
         },
