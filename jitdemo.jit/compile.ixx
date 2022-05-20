@@ -78,6 +78,30 @@ enum class FloatRegister
     Xmm7 = 7,
 };
 
+enum class GeneralRegister
+{
+    Rax = 0,
+    Rcx = 1,
+    Rdx = 2,
+    Rbx = 3,
+    Rsp = 4,
+    Rbp = 5,
+    Rsi = 6,
+    Rdi = 7,
+};
+
+enum class ExtendedGeneralRegister
+{
+    R8  = 0,
+    R9  = 1,
+    R10 = 2,
+    R11 = 3,
+    R12 = 4,
+    R13 = 5,
+    R14 = 6,
+    R15 = 7,
+};
+
 constexpr ::std::size_t NumFloatRegisters { 8 };
 
 constexpr ::std::size_t NumBytesInHomingSpace { 32 };
@@ -118,6 +142,254 @@ class MemoryOccupationManager
     {
         floatRegisterOccupations_.set(static_cast<::std::size_t>(reg), false);
     }
+
+    bool BorrowRegister(FloatRegister reg) noexcept
+    {
+        if (!floatRegisterOccupations_.test(static_cast<::std::size_t>(reg)))
+        {
+            floatRegisterOccupations_.set(static_cast<::std::size_t>(reg));
+            return true;
+        }
+        return false;
+    }
+};
+
+class CodeGenerator
+{
+  private:
+    constexpr static ::std::size_t StackSizeIdx { 7 };
+
+  private:
+    constexpr static void OffsetMux(::std::ptrdiff_t offset, auto&& handler)
+    {
+        if (-::std::ptrdiff_t { 0x80 } <= offset && offset <= 0x7F)
+        {
+            ::std::uint8_t offsetCasted { static_cast<::std::uint8_t>(
+                static_cast<::std::int8_t>(offset)) };
+            handler(offsetCasted);
+            return;
+        }
+
+        if (-::std::ptrdiff_t { 0x80000000 } <= offset && offset <= 0x7FFFFFFF)
+        {
+            ::std::uint32_t offsetCasted { static_cast<::std::uint8_t>(
+                static_cast<::std::int32_t>(offset)) };
+            handler(offsetCasted);
+            return;
+        }
+
+        throw ::std::invalid_argument { "offset too large" };
+    }
+
+    constexpr void OffsetMux(auto                                    reg1,
+                             auto                                    reg2,
+                             ::std::ptrdiff_t                        reg2Offset,
+                             ::std::initializer_list<::std::uint8_t> list)
+    {
+        OffsetMux(reg2Offset, [this, reg1, reg2, list](auto offsetCasted) {
+            if constexpr (::std::is_same_v<::std::uint8_t, ::std::decay_t<decltype(offsetCasted)>>)
+            {
+                ::std::uint8_t sourceDest {
+                    static_cast<::std::uint8_t>(0x40 | (static_cast<int>(reg1) << 3)
+                                                | static_cast<int>(reg2)),
+                };
+
+                EmitList(list);
+                EmitList({ sourceDest, offsetCasted });
+            }
+            if constexpr (::std::is_same_v<::std::uint32_t, ::std::decay_t<decltype(offsetCasted)>>)
+            {
+                ::std::uint8_t sourceDest {
+                    static_cast<::std::uint8_t>(0x80 | (static_cast<int>(reg1) << 3)
+                                                | static_cast<int>(reg2)),
+                };
+
+                EmitList(list);
+                EmitList({ sourceDest });
+                EmitConstant(offsetCasted);
+            }
+        });
+    }
+
+  private:
+    ::std::vector<::std::uint8_t> code_;
+
+  public:
+    constexpr ::std::vector<::std::uint8_t> const& code() const noexcept
+    {
+        return code_;
+    }
+
+  public:
+    constexpr CodeGenerator() {}
+
+  public:
+    constexpr void EmitConstant(auto&& value)
+    {
+        ::std::array<::std::uint8_t, sizeof(value)> transmuted {
+            Transmute<::std::decay_t<decltype(value)>, ::std::array<::std::uint8_t, sizeof(value)>>(
+                value),
+        };
+        code_.insert(code_.end(), transmuted.begin(), transmuted.end());
+    }
+
+    constexpr void EmitList(::std::initializer_list<::std::uint8_t> list)
+    {
+        code_.insert(code_.end(), list);
+    }
+
+    constexpr void EmitProlog()
+    {
+        // clang-format off
+        EmitList({
+            // push rbp
+            0x55,
+            // mov rbp, rsp
+            0x48, 0x89, 0xe5,
+            // sub rsp, 0x00
+            0x48, 0x83, 0xec, 0x00,
+        });
+        // clang-format on
+    }
+
+    constexpr void EmitEpilog(::std::size_t numBytesInStack)
+    {
+        // for 16-byte stack alignment requirement
+        if (numBytesInStack % 16 > 0)
+        {
+            numBytesInStack += 16 - numBytesInStack % 16;
+        }
+
+        if (numBytesInStack <= 0x7F)
+        {
+            ::std::uint8_t operand { static_cast<::std::uint8_t>(numBytesInStack) };
+
+            // modify 'sub rsp, 0x00' in the prolog
+            code_[StackSizeIdx] = operand;
+        }
+        else if (numBytesInStack <= 0x7FFFFFFF)
+        {
+            code_[StackSizeIdx - 2] = 0x81;
+
+            ::std::array<::std::uint8_t, 4> operand {
+                Transmute<::std::uint32_t, ::std::array<::std::uint8_t, 4>>(
+                    static_cast<::std::uint32_t>(numBytesInStack)),
+            };
+
+            // modify 'sub rsp, 0x00' in the prolog
+            code_[StackSizeIdx] = operand[0];
+            code_.insert(code_.begin() + StackSizeIdx + 1, operand.begin() + 1, operand.end());
+        }
+        else
+        {
+            throw ::std::runtime_error { "stack size too big" };
+        }
+
+        EmitList({
+            // leave
+            0xc9,
+            // ret
+            0xc3,
+        });
+    }
+
+    constexpr void Mov(GeneralRegister dest, ::std::uint64_t constant)
+    {
+        EmitList({ 0x48, static_cast<::std::uint8_t>(0xb8 | static_cast<int>(dest)) });
+        EmitConstant(constant);
+    }
+
+    constexpr void Mov(ExtendedGeneralRegister dest, ::std::uint64_t constant)
+    {
+        EmitList({ 0x49, static_cast<::std::uint8_t>(0xb8 | static_cast<int>(dest)) });
+        EmitConstant(constant);
+    }
+
+    constexpr void Mov(FloatRegister dest, FloatRegister src)
+    {
+        if (dest != src)
+        {
+            ::std::uint8_t instLastByte {
+                static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                            | static_cast<int>(src)),
+            };
+            EmitList({ 0xf3, 0x0f, 0x7e, instLastByte });
+        }
+    }
+
+    constexpr void Mov(GeneralRegister dest, ::std::ptrdiff_t offset, FloatRegister src)
+    {
+        OffsetMux(src, dest, offset, { 0x66, 0x0f, 0xd6 });
+    }
+
+    constexpr void Mov(FloatRegister dest, GeneralRegister src, ::std::ptrdiff_t offset)
+    {
+        OffsetMux(dest, src, offset, { 0xf3, 0x0f, 0x7e });
+    }
+
+    constexpr void Mov(GeneralRegister dest, ::std::ptrdiff_t offset, GeneralRegister src)
+    {
+        OffsetMux(src, dest, offset, { 0x48, 0x89 });
+    }
+
+    constexpr void Mov(GeneralRegister dest, GeneralRegister src, ::std::ptrdiff_t offset)
+    {
+        OffsetMux(dest, src, offset, { 0x48, 0x8b });
+    }
+
+    constexpr void Mov(FloatRegister dest, GeneralRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                        | static_cast<int>(src)),
+        };
+        EmitList({ 0x66, 0x48, 0x0f, 0x6e, sourceDest });
+    }
+
+    constexpr void Mov(GeneralRegister dest, FloatRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(src) << 3)
+                                        | static_cast<int>(dest)),
+        };
+        EmitList({ 0x66, 0x48, 0x0f, 0x7e, sourceDest });
+    }
+
+    constexpr void Addsd(FloatRegister dest, FloatRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                        | static_cast<int>(src)),
+        };
+        EmitList({ 0xf2, 0x0f, 0x58, sourceDest });
+    }
+
+    constexpr void Subsd(FloatRegister dest, FloatRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                        | static_cast<int>(src)),
+        };
+        EmitList({ 0xf2, 0x0f, 0x5c, sourceDest });
+    }
+
+    constexpr void Mulsd(FloatRegister dest, FloatRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                        | static_cast<int>(src)),
+        };
+        EmitList({ 0xf2, 0x0f, 0x59, sourceDest });
+    }
+
+    constexpr void Divsd(FloatRegister dest, FloatRegister src)
+    {
+        ::std::uint8_t sourceDest {
+            static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
+                                        | static_cast<int>(src)),
+        };
+        EmitList({ 0xf2, 0x0f, 0x5e, sourceDest });
+    }
 };
 
 }
@@ -136,14 +408,22 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
     ::std::vector<FloatRegister>                 evaluationStack;
 
     MemoryOccupationManager manager;
+    CodeGenerator           generator;
+
+    auto InsertConstant {
+        [&code](auto&& value) {
+            ::std::array<::std::uint8_t, sizeof(value)> transmuted {
+                Transmute<::std::decay_t<decltype(value)>,
+                          ::std::array<::std::uint8_t, sizeof(value)>>(value),
+            };
+            code.insert(code.end(), transmuted.begin(), transmuted.end());
+        },
+    };
 
     auto InsertMovAbs {
-        [&code](auto&& value) {
-            ::std::array<::std::uint8_t, 8> transmuted {
-                Transmute<::std::decay_t<decltype(value)>, ::std::array<::std::uint8_t, 8>>(value),
-            };
+        [&code, &InsertConstant](auto&& value) {
             code.insert(code.end(), { 0x48, 0xB8 });
-            code.insert(code.end(), transmuted.begin(), transmuted.end());
+            InsertConstant(::std::forward<decltype(value)>(value));
         },
     };
 
@@ -157,6 +437,60 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                                                 | static_cast<int>(src)),
                 };
                 code.insert(code.end(), { 0xf3, 0x0f, 0x7e, instLastByte });
+            }
+        },
+    };
+
+    ::std::size_t numBytesInStack {};
+
+    auto BackupOccupiedRegisters {
+        [&code, &manager, &numBytesInStack]() {
+            ::std::size_t requiredNumStackBytes { 32 };
+            ::std::size_t idx {};
+
+            for (FloatRegister reg : manager.GetOccupiedRegisters())
+            {
+                ::std::uint8_t sourceWithPrefix {
+                    static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
+                };
+
+                // offset = numBytesInHomingSpace + idx * sizeof(double)
+                // Since the number of registers is up to 8, offset is always less than
+                // 128
+                auto offset {
+                    static_cast<::std::uint8_t>(NumBytesInHomingSpace + idx * sizeof(double)),
+                };
+
+                // movq qword ptr [rsp + offset], xmm[reg]
+                code.insert(code.end(), { 0x66, 0x0f, 0xd6, sourceWithPrefix, 0x24, offset });
+
+                requiredNumStackBytes += sizeof(double);
+                ++idx;
+            }
+            numBytesInStack = ::std::max(numBytesInStack, requiredNumStackBytes);
+        },
+    };
+
+    auto RestoreOccupiedRegisters {
+        [&code, &manager]() {
+            ::std::size_t idx {};
+            for (FloatRegister reg : manager.GetOccupiedRegisters())
+            {
+                ::std::uint8_t sourceWithPrefix {
+                    static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
+                };
+
+                // offset = numBytesInHomingSpace + idx * sizeof(double)
+                // Since the number of registers is up to 8, offset is always less than
+                // 128
+                auto offset {
+                    static_cast<::std::uint8_t>(NumBytesInHomingSpace + idx * sizeof(double)),
+                };
+
+                // movq xmm[reg], qword ptr [rsp + offset]
+                code.insert(code.end(), { 0xf3, 0x0f, 0x7e, sourceWithPrefix, 0x24, offset });
+
+                ++idx;
             }
         },
     };
@@ -181,8 +515,6 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
     code.insert(code.end(), { 0x48, 0x89, 0x45 | (paramReg << 3), 0xf8 });
 
     expressionStack.push_back({ function->expr(), 0 });
-
-    ::std::size_t numBytesInStack { 0 };
 
     while (!expressionStack.empty())
     {
@@ -225,10 +557,6 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
             }
             else if (offset <= 0xFFFFFFFF)
             {
-                ::std::array<::std::uint8_t, 4> value {
-                    Transmute<::std::uint32_t, ::std::array<::std::uint8_t, 4>>(
-                        static_cast<::std::uint32_t>(offset)),
-                };
                 code.insert(
                     code.end(),
                     {
@@ -237,7 +565,7 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                         0x7e,
                         static_cast<::std::uint8_t>(0x80 | paramReg | (static_cast<int>(reg) << 3)),
                     });
-                code.insert(code.end(), value.begin(), value.end());
+                InsertConstant(static_cast<::std::uint32_t>(offset));
             }
             else
             {
@@ -293,36 +621,9 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                     code.insert(code.end(), { 0xf2, 0x0f, 0x5e, sourceDestWithPrefix });
                     break;
                 case BinaryExpressionOps::Power:
-                {
-                    {
-                        ::std::size_t requiredNumStackBytes { 32 };
-                        ::std::size_t idx {};
-                        for (FloatRegister reg : manager.GetOccupiedRegisters())
-                        {
-                            if (reg == lhs)
-                                continue;
 
-                            ::std::uint8_t sourceWithPrefix {
-                                static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
-                            };
-
-                            // offset = numBytesInHomingSpace + idx * sizeof(double)
-                            // Since the number of registers is up to 8, offset is always less than
-                            // 128
-                            auto offset {
-                                static_cast<::std::uint8_t>(NumBytesInHomingSpace
-                                                            + idx * sizeof(double)),
-                            };
-
-                            // movq qword ptr [rsp + offset], xmm[reg]
-                            code.insert(code.end(),
-                                        { 0x66, 0x0f, 0xd6, sourceWithPrefix, 0x24, offset });
-
-                            requiredNumStackBytes += sizeof(double);
-                            ++idx;
-                        }
-                        numBytesInStack = ::std::max(numBytesInStack, requiredNumStackBytes);
-                    }
+                    manager.ReturnRegister(lhs);
+                    BackupOccupiedRegisters();
 
                     struct PowerFunction
                     {
@@ -365,33 +666,8 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                     // mov paramReg, qword ptr [rbp - 0x08]
                     code.insert(code.end(), { 0x48, 0x8b, 0x45 | (paramReg << 3), 0xf8 });
 
-                    {
-                        ::std::size_t idx {};
-                        for (FloatRegister reg : manager.GetOccupiedRegisters())
-                        {
-                            if (reg == lhs)
-                                continue;
-
-                            ::std::uint8_t sourceWithPrefix {
-                                static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
-                            };
-
-                            // offset = numBytesInHomingSpace + idx * sizeof(double)
-                            // Since the number of registers is up to 8, offset is always less than
-                            // 128
-                            auto offset {
-                                static_cast<::std::uint8_t>(NumBytesInHomingSpace
-                                                            + idx * sizeof(double)),
-                            };
-
-                            // movq xmm[reg], qword ptr [rsp + offset]
-                            code.insert(code.end(),
-                                        { 0xf3, 0x0f, 0x7e, sourceWithPrefix, 0x24, offset });
-
-                            ++idx;
-                        }
-                    }
-                }
+                    RestoreOccupiedRegisters();
+                    manager.BorrowRegister(lhs);
                 }
 
                 // evaluationStack.push_back(lhs);
@@ -411,8 +687,7 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                 // offset = numOperandsProcessed * sizeof(double) + 24
                 ::std::size_t offset { numOperandsProcessed * sizeof(double) + 24 };
 
-                // mov qword ptr [rsp + offset], xmm[operandReg]
-                // TODO
+                // movq qword ptr [rsp + offset], xmm[operandReg]
             }
 
             if (numOperandsProcessed != functionExpression->GetNumArguments())
