@@ -154,6 +154,9 @@ class MemoryOccupationManager
     }
 };
 
+template <typename T>
+concept EightByteConstant = (sizeof(T) == sizeof(::std::uint64_t));
+
 class CodeGenerator
 {
   private:
@@ -184,9 +187,10 @@ class CodeGenerator
     constexpr void OffsetMux(auto                                    reg1,
                              auto                                    reg2,
                              ::std::ptrdiff_t                        reg2Offset,
-                             ::std::initializer_list<::std::uint8_t> list)
+                             ::std::initializer_list<::std::uint8_t> list,
+                             ::std::initializer_list<::std::uint8_t> list2 = {})
     {
-        OffsetMux(reg2Offset, [this, reg1, reg2, list](auto offsetCasted) {
+        OffsetMux(reg2Offset, [this, reg1, reg2, list, list2](auto offsetCasted) {
             if constexpr (::std::is_same_v<::std::uint8_t, ::std::decay_t<decltype(offsetCasted)>>)
             {
                 ::std::uint8_t sourceDest {
@@ -195,7 +199,9 @@ class CodeGenerator
                 };
 
                 EmitList(list);
-                EmitList({ sourceDest, offsetCasted });
+                EmitList({ sourceDest });
+                EmitList(list2);
+                EmitList({ offsetCasted });
             }
             if constexpr (::std::is_same_v<::std::uint32_t, ::std::decay_t<decltype(offsetCasted)>>)
             {
@@ -206,6 +212,7 @@ class CodeGenerator
 
                 EmitList(list);
                 EmitList({ sourceDest });
+                EmitList(list2);
                 EmitConstant(offsetCasted);
             }
         });
@@ -293,13 +300,15 @@ class CodeGenerator
         });
     }
 
-    constexpr void Mov(GeneralRegister dest, ::std::uint64_t constant)
+    template <EightByteConstant T>
+    constexpr void Mov(GeneralRegister dest, T constant)
     {
         EmitList({ 0x48, static_cast<::std::uint8_t>(0xb8 | static_cast<int>(dest)) });
         EmitConstant(constant);
     }
 
-    constexpr void Mov(ExtendedGeneralRegister dest, ::std::uint64_t constant)
+    template <EightByteConstant T>
+    constexpr void Mov(ExtendedGeneralRegister dest, T constant)
     {
         EmitList({ 0x49, static_cast<::std::uint8_t>(0xb8 | static_cast<int>(dest)) });
         EmitConstant(constant);
@@ -319,12 +328,18 @@ class CodeGenerator
 
     constexpr void Mov(GeneralRegister dest, ::std::ptrdiff_t offset, FloatRegister src)
     {
-        OffsetMux(src, dest, offset, { 0x66, 0x0f, 0xd6 });
+        if (dest != GeneralRegister::Rsp)
+            OffsetMux(src, dest, offset, { 0x66, 0x0f, 0xd6 });
+        else
+            OffsetMux(src, dest, offset, { 0x66, 0x0f, 0xd6 }, { 0x24 });
     }
 
     constexpr void Mov(FloatRegister dest, GeneralRegister src, ::std::ptrdiff_t offset)
     {
-        OffsetMux(dest, src, offset, { 0xf3, 0x0f, 0x7e });
+        if (src != GeneralRegister::Rsp)
+            OffsetMux(dest, src, offset, { 0xf3, 0x0f, 0x7e });
+        else
+            OffsetMux(dest, src, offset, { 0xf3, 0x0f, 0x7e }, { 0x24 });
     }
 
     constexpr void Mov(GeneralRegister dest, ::std::ptrdiff_t offset, GeneralRegister src)
@@ -390,6 +405,11 @@ class CodeGenerator
         };
         EmitList({ 0xf2, 0x0f, 0x5e, sourceDest });
     }
+
+    constexpr void Call(GeneralRegister reg)
+    {
+        EmitList({ 0xff, static_cast<::std::uint8_t>(0xd0 | static_cast<int>(reg)) });
+    }
 };
 
 }
@@ -402,7 +422,6 @@ class CodeGenerator
 jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
 {
     ::std::vector<::std::shared_ptr<Function>> referencedFunctions;
-    ::std::vector<::std::uint8_t>              code;
 
     ::std::vector<::std::pair<Expression*, int>> expressionStack;
     ::std::vector<FloatRegister>                 evaluationStack;
@@ -410,59 +429,19 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
     MemoryOccupationManager manager;
     CodeGenerator           generator;
 
-    auto InsertConstant {
-        [&code](auto&& value) {
-            ::std::array<::std::uint8_t, sizeof(value)> transmuted {
-                Transmute<::std::decay_t<decltype(value)>,
-                          ::std::array<::std::uint8_t, sizeof(value)>>(value),
-            };
-            code.insert(code.end(), transmuted.begin(), transmuted.end());
-        },
-    };
-
-    auto InsertMovAbs {
-        [&code, &InsertConstant](auto&& value) {
-            code.insert(code.end(), { 0x48, 0xB8 });
-            InsertConstant(::std::forward<decltype(value)>(value));
-        },
-    };
-
-    auto Mov {
-        [&code](FloatRegister dest, FloatRegister src) {
-            if (dest != src)
-            {
-                // mov xmm[dest], xmm[src]
-                ::std::uint8_t instLastByte {
-                    static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(dest) << 3)
-                                                | static_cast<int>(src)),
-                };
-                code.insert(code.end(), { 0xf3, 0x0f, 0x7e, instLastByte });
-            }
-        },
-    };
-
     ::std::size_t numBytesInStack {};
 
     auto BackupOccupiedRegisters {
-        [&code, &manager, &numBytesInStack]() {
+        [&generator, &manager, &numBytesInStack]() {
             ::std::size_t requiredNumStackBytes { 32 };
             ::std::size_t idx {};
 
             for (FloatRegister reg : manager.GetOccupiedRegisters())
             {
-                ::std::uint8_t sourceWithPrefix {
-                    static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
-                };
-
                 // offset = numBytesInHomingSpace + idx * sizeof(double)
-                // Since the number of registers is up to 8, offset is always less than
-                // 128
-                auto offset {
-                    static_cast<::std::uint8_t>(NumBytesInHomingSpace + idx * sizeof(double)),
-                };
+                ::std::size_t offset { NumBytesInHomingSpace + idx * sizeof(double) };
 
-                // movq qword ptr [rsp + offset], xmm[reg]
-                code.insert(code.end(), { 0x66, 0x0f, 0xd6, sourceWithPrefix, 0x24, offset });
+                generator.Mov(GeneralRegister::Rsp, offset, reg);
 
                 requiredNumStackBytes += sizeof(double);
                 ++idx;
@@ -472,47 +451,31 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
     };
 
     auto RestoreOccupiedRegisters {
-        [&code, &manager]() {
+        [&generator, &manager]() {
             ::std::size_t idx {};
             for (FloatRegister reg : manager.GetOccupiedRegisters())
             {
-                ::std::uint8_t sourceWithPrefix {
-                    static_cast<::std::uint8_t>(0x44 | (static_cast<int>(reg) << 3)),
-                };
-
                 // offset = numBytesInHomingSpace + idx * sizeof(double)
-                // Since the number of registers is up to 8, offset is always less than
-                // 128
-                auto offset {
-                    static_cast<::std::uint8_t>(NumBytesInHomingSpace + idx * sizeof(double)),
-                };
+                ::std::size_t offset { NumBytesInHomingSpace + idx * sizeof(double) };
 
-                // movq xmm[reg], qword ptr [rsp + offset]
-                code.insert(code.end(), { 0xf3, 0x0f, 0x7e, sourceWithPrefix, 0x24, offset });
+                generator.Mov(reg, GeneralRegister::Rsp, offset);
 
                 ++idx;
             }
         },
     };
 
-    // push rbp
-    code.insert(code.end(), { 0x55 });
-    // mov rbp, rsp
-    code.insert(code.end(), { 0x48, 0x89, 0xe5 });
-    // sub rsp, 0x00
-    code.insert(code.end(), { 0x48, 0x83, 0xec, 0x00 });
-    constexpr ::std::size_t stackSizeIdx { 7 };
+    generator.EmitProlog();
 
 #ifdef _WIN32
     // rcx holds the value of the first argument in x64 Windows
-    constexpr int paramReg { 0x01 };
+    constexpr GeneralRegister paramReg { GeneralRegister::Rcx };
 #else
     // rdi holds the value of the first argument in x64 Linux
-    constexpr int paramReg { 0x07 };
+    constexpr GeneralRegister paramReg { GeneralRegister::Rdi };
 #endif
 
-    // mov qword ptr [rbp - 0x08], paramReg
-    code.insert(code.end(), { 0x48, 0x89, 0x45 | (paramReg << 3), 0xf8 });
+    generator.Mov(GeneralRegister::Rbp, -8, paramReg);
 
     expressionStack.push_back({ function->expr(), 0 });
 
@@ -523,15 +486,8 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         {
             FloatRegister const reg { manager.BorrowNewRegister() };
 
-            ::std::uint8_t sourceDestWithPrefix {
-                static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(reg) << 3)),
-            };
-
-            // movabs rax, value
-            InsertMovAbs(constantExpression->value());
-
-            // movq xmm[reg], rax
-            code.insert(code.end(), { 0x66, 0x48, 0x0f, 0x6e, sourceDestWithPrefix });
+            generator.Mov(GeneralRegister::Rax, constantExpression->value());
+            generator.Mov(reg, GeneralRegister::Rax);
 
             evaluationStack.push_back(reg);
             expressionStack.pop_back();
@@ -542,35 +498,7 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
 
             ::std::size_t offset { variableExpression->idx() * sizeof(double) };
 
-            // movq xmm[reg], QWORD PTR [(rcx if windows else rdi) + idx * sizeof(double)]
-            if (offset <= 0x7F)
-            {
-                code.insert(
-                    code.end(),
-                    {
-                        0xf3,
-                        0x0f,
-                        0x7e,
-                        static_cast<::std::uint8_t>(0x40 | paramReg | (static_cast<int>(reg) << 3)),
-                        static_cast<::std::uint8_t>(offset),
-                    });
-            }
-            else if (offset <= 0xFFFFFFFF)
-            {
-                code.insert(
-                    code.end(),
-                    {
-                        0xf3,
-                        0x0f,
-                        0x7e,
-                        static_cast<::std::uint8_t>(0x80 | paramReg | (static_cast<int>(reg) << 3)),
-                    });
-                InsertConstant(static_cast<::std::uint32_t>(offset));
-            }
-            else
-            {
-                throw ::std::runtime_error { "offset too big" };
-            }
+            generator.Mov(reg, paramReg, offset);
 
             evaluationStack.push_back(reg);
             expressionStack.pop_back();
@@ -595,31 +523,14 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                 FloatRegister const lhs { evaluationStack.back() };
                 // evaluationStack.pop_back();
 
-                ::std::uint8_t sourceDestWithPrefix {
-                    static_cast<::std::uint8_t>(0xc0 | (static_cast<int>(lhs) << 3)
-                                                | static_cast<int>(rhs)),
-                };
-
                 manager.ReturnRegister(rhs);
 
                 switch (binaryExpression->ops())
                 {
-                case BinaryExpressionOps::Addition:
-                    // addsd xmm[lhs], xmm[rhs]
-                    code.insert(code.end(), { 0xf2, 0x0f, 0x58, sourceDestWithPrefix });
-                    break;
-                case BinaryExpressionOps::Subtraction:
-                    // subsd xmm[lhs], xmm[rhs]
-                    code.insert(code.end(), { 0xf2, 0x0f, 0x5c, sourceDestWithPrefix });
-                    break;
-                case BinaryExpressionOps::Multiplication:
-                    // mulsd xmm[lhs], xmm[rhs]
-                    code.insert(code.end(), { 0xf2, 0x0f, 0x59, sourceDestWithPrefix });
-                    break;
-                case BinaryExpressionOps::Division:
-                    // divsd xmm[lhs], xmm[rhs]
-                    code.insert(code.end(), { 0xf2, 0x0f, 0x5e, sourceDestWithPrefix });
-                    break;
+                case BinaryExpressionOps::Addition: generator.Addsd(lhs, rhs); break;
+                case BinaryExpressionOps::Subtraction: generator.Subsd(lhs, rhs); break;
+                case BinaryExpressionOps::Multiplication: generator.Mulsd(lhs, rhs); break;
+                case BinaryExpressionOps::Division: generator.Divsd(lhs, rhs); break;
                 case BinaryExpressionOps::Power:
 
                     manager.ReturnRegister(lhs);
@@ -638,33 +549,26 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                         if (lhs == FloatRegister::Xmm1)
                         {
                             // swap
-                            Mov(FloatRegister::Xmm2, FloatRegister::Xmm0);
-                            Mov(FloatRegister::Xmm0, FloatRegister::Xmm1);
-                            Mov(FloatRegister::Xmm1, FloatRegister::Xmm2);
+                            generator.Mov(FloatRegister::Xmm2, FloatRegister::Xmm0);
+                            generator.Mov(FloatRegister::Xmm0, FloatRegister::Xmm1);
+                            generator.Mov(FloatRegister::Xmm1, FloatRegister::Xmm2);
                         }
                         else
                         {
-                            Mov(FloatRegister::Xmm1, rhs);
-                            Mov(FloatRegister::Xmm0, lhs);
+                            generator.Mov(FloatRegister::Xmm1, rhs);
+                            generator.Mov(FloatRegister::Xmm0, lhs);
                         }
                     }
                     else
                     {
-                        Mov(FloatRegister::Xmm0, lhs);
-                        Mov(FloatRegister::Xmm1, rhs);
+                        generator.Mov(FloatRegister::Xmm0, lhs);
+                        generator.Mov(FloatRegister::Xmm1, rhs);
                     }
 
-                    // movabs rax, ::std::pow
-                    InsertMovAbs(&PowerFunction::Power);
-
-                    // call rax
-                    code.insert(code.end(), { 0xff, 0xd0 });
-
-                    // mov xmm[lhs], xmm0
-                    Mov(lhs, FloatRegister::Xmm0);
-
-                    // mov paramReg, qword ptr [rbp - 0x08]
-                    code.insert(code.end(), { 0x48, 0x8b, 0x45 | (paramReg << 3), 0xf8 });
+                    generator.Mov(GeneralRegister::Rax, &PowerFunction::Power);
+                    generator.Call(GeneralRegister::Rax);
+                    generator.Mov(lhs, FloatRegister::Xmm0);
+                    generator.Mov(paramReg, GeneralRegister::Rbp, -8);
 
                     RestoreOccupiedRegisters();
                     manager.BorrowRegister(lhs);
@@ -736,49 +640,13 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
         }
     }
 
-    // mov xmm0, xmm[finalResultReg]
-    Mov(FloatRegister::Xmm0, evaluationStack.back());
-
-    // for 16-byte stack alignment requirement
-    if (numBytesInStack % 16 > 0)
-    {
-        numBytesInStack += 16 - numBytesInStack % 16;
-    }
-
-    if (numBytesInStack <= 0x7F)
-    {
-        ::std::uint8_t operand { static_cast<::std::uint8_t>(numBytesInStack) };
-
-        // modify 'sub rsp, 0x00' in the prolog
-        code[stackSizeIdx] = operand;
-    }
-    else if (numBytesInStack <= 0x7FFFFFFF)
-    {
-        code[stackSizeIdx - 2] = 0x81;
-
-        ::std::array<::std::uint8_t, 4> operand {
-            Transmute<::std::uint32_t, ::std::array<::std::uint8_t, 4>>(
-                static_cast<::std::uint32_t>(numBytesInStack)),
-        };
-
-        // modify 'sub rsp, 0x00' in the prolog
-        code[stackSizeIdx] = operand[0];
-        code.insert(code.begin() + stackSizeIdx + 1, operand.begin() + 1, operand.end());
-    }
-    else
-    {
-        throw ::std::runtime_error { "stack size too big" };
-    }
-
-    // leave
-    code.push_back(0xc9);
-    // ret
-    code.push_back(0xc3);
+    generator.Mov(FloatRegister::Xmm0, evaluationStack.back());
+    generator.EmitEpilog(numBytesInStack);
 
     return ::std::shared_ptr<CompiledFunction> {
         new CompiledFunction {
             function->params(),
-            code,
+            generator.code(),
             ::std::move(referencedFunctions),
         },
     };
