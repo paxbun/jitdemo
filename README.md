@@ -4,6 +4,11 @@
 
 A simple example showing how JIT works.
 
+# Supported platforms
+
+* Windows 11 x64
+* ~~Linux x64~~ (Not tested)
+
 # Project structure
 
 Miscellaneous directories:
