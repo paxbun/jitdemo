@@ -13,5 +13,5 @@ Miscellaneous directories:
 Explore the codes in the following order:
 
 * `expr`: Contains expression tree type definitions and parsing logic.
-* `jit`: Contains JIT logic. (incomplete)
+* `jit`: Contains JIT logic.
 * `shell`: Contains a simple shell implementation using the features in the above 2 modules. `main()` is in `shell/main.cxx`. (incomplete)
