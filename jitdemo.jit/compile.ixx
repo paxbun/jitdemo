@@ -344,12 +344,26 @@ class CodeGenerator
 
     constexpr void Mov(GeneralRegister dest, ::std::ptrdiff_t offset, GeneralRegister src)
     {
-        OffsetMux(src, dest, offset, { 0x48, 0x89 });
+        if (src != GeneralRegister::Rsp)
+            OffsetMux(src, dest, offset, { 0x48, 0x89 });
+        else
+            OffsetMux(src, dest, offset, { 0x48, 0x89 }, { 0x24 });
     }
 
     constexpr void Mov(GeneralRegister dest, GeneralRegister src, ::std::ptrdiff_t offset)
     {
-        OffsetMux(dest, src, offset, { 0x48, 0x8b });
+        if (src != GeneralRegister::Rsp)
+            OffsetMux(dest, src, offset, { 0x48, 0x8b });
+        else
+            OffsetMux(dest, src, offset, { 0x48, 0x8b }, { 0x24 });
+    }
+
+    constexpr void Lea(GeneralRegister dest, GeneralRegister src, ::std::ptrdiff_t offset)
+    {
+        if (src != GeneralRegister::Rsp)
+            OffsetMux(dest, src, offset, { 0x48, 0x8d });
+        else
+            OffsetMux(dest, src, offset, { 0x48, 0x8d }, { 0x24 });
     }
 
     constexpr void Mov(FloatRegister dest, GeneralRegister src)
@@ -432,9 +446,8 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
     ::std::size_t numBytesInStack {};
 
     auto BackupOccupiedRegisters {
-        [&generator, &manager, &numBytesInStack]() {
-            ::std::size_t requiredNumStackBytes { 32 };
-            ::std::size_t idx {};
+        [&generator, &manager, &numBytesInStack](::std::size_t numEntriesAlreadyUsed = {}) {
+            ::std::size_t idx { numEntriesAlreadyUsed };
 
             for (FloatRegister reg : manager.GetOccupiedRegisters())
             {
@@ -443,16 +456,16 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
 
                 generator.Mov(GeneralRegister::Rsp, offset, reg);
 
-                requiredNumStackBytes += sizeof(double);
                 ++idx;
             }
-            numBytesInStack = ::std::max(numBytesInStack, requiredNumStackBytes);
+            numBytesInStack
+                = ::std::max(numBytesInStack, NumBytesInHomingSpace + idx * sizeof(double));
         },
     };
 
     auto RestoreOccupiedRegisters {
-        [&generator, &manager]() {
-            ::std::size_t idx {};
+        [&generator, &manager](::std::size_t numEntriesAlreadyUsed = {}) {
+            ::std::size_t idx { numEntriesAlreadyUsed };
             for (FloatRegister reg : manager.GetOccupiedRegisters())
             {
                 // offset = numBytesInHomingSpace + idx * sizeof(double)
@@ -591,7 +604,8 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                 // offset = numOperandsProcessed * sizeof(double) + 24
                 ::std::size_t offset { numOperandsProcessed * sizeof(double) + 24 };
 
-                // movq qword ptr [rsp + offset], xmm[operandReg]
+                generator.Mov(GeneralRegister::Rsp, offset, operandReg);
+                manager.ReturnRegister(operandReg);
             }
 
             if (numOperandsProcessed != functionExpression->GetNumArguments())
@@ -607,6 +621,10 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                 ::std::shared_ptr<Function> const& function { functionExpression->function() };
                 referencedFunctions.push_back(function);
 
+                BackupOccupiedRegisters(functionExpression->GetNumArguments());
+
+                FloatRegister resultReg { manager.BorrowNewRegister() };
+
                 struct FunctionCallProxy
                 {
                     static double Call(Function*     func,
@@ -617,22 +635,29 @@ jitdemo::jit::Compile(::std::shared_ptr<ExpressionTreeFunction> const& function)
                     }
                 };
 
+#ifdef _WIN32
                 // Windows: rcx rdx r8
-                // movabs r8, numParams
-                // lea rdx, [rsp + numBytesInHomingSpace]
-                // movabs rcx, function.get()
-                // movabs rax, &FunctionCallProxy::Call
-                // call rax
-                //
+                generator.Mov(ExtendedGeneralRegister::R8, functionExpression->GetNumArguments());
+                generator.Lea(GeneralRegister::Rdx, GeneralRegister::Rsp, NumBytesInHomingSpace);
+                generator.Mov(GeneralRegister::Rcx, function.get());
+#else
                 // Linux: rdi rsi rdx
-                // movabs rdx, numParams
-                // lea rsi, [rsp + numBytesInHomingSpace]
-                // movabs rdi, function.get()
-                // movabs rax, &FunctionCallProxy::Call
-                // call rax
-                // TODO
+                generator.Mov(ExtendedGeneralRegister::Rdx, functionExpression->GetNumArguments());
+                generator.Lea(GeneralRegister::Rsi, GeneralRegister::Rsp, NumBytesInHomingSpace);
+                generator.Mov(GeneralRegister::Rdi, function.get());
+#endif
+                generator.Mov(GeneralRegister::Rax, &FunctionCallProxy::Call);
+                generator.Call(GeneralRegister::Rax);
+                generator.Mov(resultReg, FloatRegister::Xmm0);
+                generator.Mov(paramReg, GeneralRegister::Rbp, -8);
+
+                manager.ReturnRegister(resultReg);
+                RestoreOccupiedRegisters(functionExpression->GetNumArguments());
+                manager.BorrowRegister(resultReg);
+
+                evaluationStack.push_back(resultReg);
+                expressionStack.pop_back();
             }
-            throw ::std::invalid_argument { "unexpected type of expression" };
         }
         else
         {
