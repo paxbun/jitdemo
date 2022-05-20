@@ -23,14 +23,14 @@ Explore the codes in the following order:
 
 # TODOs
 
-* Add unit tests
-* Add detailed benchmark results
-* Add optimizations
-* Add support for funcion declaration, function renaming, ...
-  ```
-  >>> DECLARE f(x, y) = x * y + 2.4
-  >>> SHOW f
-  f(x, y) = x * y + 2.4
-  >>> DELETE f
-  >>> LIST
-  ```
+[ ] Add unit tests
+[ ] Add detailed benchmark results
+[ ] Add optimizations
+[ ] Add support for funcion declaration, function renaming, ...
+	```
+	>>> DECLARE f(x, y) = x * y + 2.4
+	>>> SHOW f
+	f(x, y) = x * y + 2.4
+	>>> DELETE f
+	>>> LIST
+	```
