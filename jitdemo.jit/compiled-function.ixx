@@ -28,7 +28,7 @@ export namespace jitdemo::jit
 class CompiledFunction final : public Function
 {
   public:
-    using FunctionType  = double (*)(double*);
+    using FunctionType = double (*)(double*);
 
   private:
     static ::std::size_t const pageSize_;
@@ -72,6 +72,11 @@ class CompiledFunction final : public Function
     void LockContent();
 
     void Deallocate() noexcept;
+
+    ::std::size_t GetNumPages() const noexcept
+    {
+        return (programSize_ + pageSize_ - 1) / pageSize_;
+    }
 
   public:
     virtual double Evaluate(::std::span<double> params) noexcept override
@@ -125,8 +130,6 @@ bool jitdemo::jit::CompiledFunction::ChangeProtection(::std::uint8_t* p,
 
 void jitdemo::jit::CompiledFunction::Allocate()
 {
-    ::std::size_t const numPages { (programSize_ + pageSize_ - 1) / pageSize_ };
-
     ::std::uint8_t* program {
         static_cast<::std::uint8_t*>(::std::malloc(pageSize_ + programSize_)),
     };
@@ -140,7 +143,7 @@ void jitdemo::jit::CompiledFunction::Allocate()
 
     program += offset;
 
-    if (!ChangeProtection(program, numPages * pageSize_))
+    if (!ChangeProtection(program, GetNumPages() * pageSize_))
     {
         ::std::free(program - offset);
         throw ::std::bad_alloc {};
@@ -152,9 +155,7 @@ void jitdemo::jit::CompiledFunction::Allocate()
 
 void jitdemo::jit::CompiledFunction::LockContent()
 {
-    ::std::size_t const numPages { (programSize_ + pageSize_ - 1) / pageSize_ };
-
-    if (!ChangeProtection(program_, numPages * pageSize_, false))
+    if (!ChangeProtection(program_, GetNumPages() * pageSize_, false))
     {
         throw ::std::runtime_error { "failed to change protetion attributes" };
     }
@@ -162,10 +163,7 @@ void jitdemo::jit::CompiledFunction::LockContent()
 
 void jitdemo::jit::CompiledFunction::Deallocate() noexcept
 {
-
-    ::std::size_t const numPages { (programSize_ + pageSize_ - 1) / pageSize_ };
-
-    if (ChangeProtection(program_, numPages * pageSize_))
+    if (ChangeProtection(program_, GetNumPages() * pageSize_))
     {
         ::std::free(program_ - programOffset_);
 
