@@ -223,7 +223,7 @@ Unique<Expression> ParseAddExpr(EXPR_PARSER_PARAMS)
             state.Match(TokenType::Plus, TokenType::Minus).type,
         };
         Unique<Expression> right { ParseMulExpr(FORWARD_EXPR_PARSER_PARAMS) };
-        left = Unique<BinaryExpression> {
+        left = Unique<Expression> {
             new BinaryExpression {
                 ::std::move(left),
                 ::std::move(right),
@@ -265,7 +265,7 @@ Unique<Expression> ParsePowExpr(EXPR_PARSER_PARAMS)
     {
         state.Match(TokenType::Caret);
         Unique<Expression> right { ParseParenExpr(FORWARD_EXPR_PARSER_PARAMS) };
-        left = Unique<BinaryExpression> {
+        left = Unique<Expression> {
             new BinaryExpression {
                 ::std::move(left),
                 ::std::move(right),
