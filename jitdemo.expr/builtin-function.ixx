@@ -3,6 +3,7 @@
 module;
 
 #include <cmath>
+#include <span>
 #include <stdexcept>
 
 export module jitdemo.expr.builtin_function;
