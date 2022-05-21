@@ -3,6 +3,7 @@
 module;
 
 #include <cstring>
+#include <span>
 
 export module jitdemo.expr.expressions.variable_expression;
 

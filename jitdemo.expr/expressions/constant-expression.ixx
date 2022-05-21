@@ -1,5 +1,9 @@
 // Copyright (c) 2022 Chanjung Kim. All rights reserved.
 
+module;
+
+#include <span>
+
 export module jitdemo.expr.expressions.constant_expression;
 
 import jitdemo.expr.expression;

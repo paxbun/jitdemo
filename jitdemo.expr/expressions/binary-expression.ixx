@@ -4,6 +4,7 @@ module;
 
 #include <cmath>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <utility>
 
